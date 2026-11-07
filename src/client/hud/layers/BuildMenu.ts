@@ -4,6 +4,7 @@ import {
   BuildMenus,
   Gold,
   PlayerBuildableUnitType,
+  SiloNukes,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { renderNumber } from "@openfront/engine-lib/Format";
@@ -34,6 +35,9 @@ const mirvIcon = assetUrl("images/MIRVIcon.svg");
 const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
+const tacticalNukeIcon = assetUrl("images/TacticalNukeIconWhite.svg");
+const empBombIcon = assetUrl("images/EMPBombIconWhite.svg");
+const dirtyBombIcon = assetUrl("images/DirtyBombIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
 const samlauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
 const shieldIcon = assetUrl("images/ShieldIconWhite.svg");
@@ -67,6 +71,28 @@ const buildTable: BuildItemDisplay[][] = [
       icon: hydrogenBombIcon,
       description: "build_menu.desc.hydrogen_bomb",
       key: "unit_type.hydrogen_bomb",
+      countable: false,
+    },
+    // Advanced warfare (hidden unless the game enables it).
+    {
+      unitType: UnitType.TacticalNuke,
+      icon: tacticalNukeIcon,
+      description: "build_menu.desc.tactical_nuke",
+      key: "unit_type.tactical_nuke",
+      countable: false,
+    },
+    {
+      unitType: UnitType.EMPBomb,
+      icon: empBombIcon,
+      description: "build_menu.desc.emp_bomb",
+      key: "unit_type.emp_bomb",
+      countable: false,
+    },
+    {
+      unitType: UnitType.DirtyBomb,
+      icon: dirtyBombIcon,
+      description: "build_menu.desc.dirty_bomb",
+      key: "unit_type.dirty_bomb",
       countable: false,
     },
     {
@@ -392,11 +418,9 @@ export class BuildMenu extends LitElement implements Controller {
         ),
       );
     } else if (buildableUnit.canBuild !== false) {
-      const rocketDirectionUp =
-        buildableUnit.type === UnitType.AtomBomb ||
-        buildableUnit.type === UnitType.HydrogenBomb
-          ? this.uiState.rocketDirectionUp
-          : undefined;
+      const rocketDirectionUp = SiloNukes.has(buildableUnit.type)
+        ? this.uiState.rocketDirectionUp
+        : undefined;
       this.eventBus.emit(
         new BuildUnitIntentEvent(buildableUnit.type, tile, rocketDirectionUp),
       );

@@ -38,8 +38,10 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
   if (pu.lastDeleteUnitTick !== undefined) {
     target.lastDeleteUnitTick = pu.lastDeleteUnitTick;
   }
-  if (pu.techs !== undefined) target.techs = pu.techs.slice();
-  if (pu.research !== undefined) {
+  if (pu.techs !== undefined && (pu.techs.length > 0 || target.techs)) {
+    target.techs = pu.techs.slice();
+  }
+  if (pu.research !== undefined && (pu.research !== null || target.research)) {
     target.research = pu.research ? { ...pu.research } : null;
   }
   // Slice() to detach from the wire object — accumulated state mustn't share

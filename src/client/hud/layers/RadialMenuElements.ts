@@ -7,6 +7,7 @@ import {
   NUKE_BULK_STEPS,
   PlayerActions,
   PlayerBuildableUnitType,
+  SiloNukes,
   STRUCTURE_BULK_STEPS,
   Structures,
   UnitType,
@@ -576,11 +577,9 @@ function createMenuElements(
                 ),
               );
             } else if (buildableUnit.canBuild !== false) {
-              const rocketDirectionUp =
-                item.unitType === UnitType.AtomBomb ||
-                item.unitType === UnitType.HydrogenBomb
-                  ? params.uiState?.rocketDirectionUp
-                  : undefined;
+              const rocketDirectionUp = SiloNukes.has(item.unitType)
+                ? params.uiState?.rocketDirectionUp
+                : undefined;
               params.eventBus.emit(
                 new BuildUnitIntentEvent(
                   buildableUnit.type,

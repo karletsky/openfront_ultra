@@ -976,6 +976,7 @@ export class GPURenderer {
     this.frameTick++;
     this.unitPass.setFrameTick(this.frameTick);
     this.unitPass.updateUnits(units, gameTick);
+    this.structurePass.setGameTick(gameTick);
     this.nukeFlightPass.updateUnits(units);
     this.samRadiusPass.setTick(gameTick);
     this.barPass.updateBars(units, this.lastStructures, gameTick);

@@ -123,6 +123,7 @@ export class HostLobbyModal extends BaseModal {
   @state() private whitelistEnabled: boolean = false;
   @state() private allowedPublicIds: string = "";
   @state() private waterNukes: boolean = false;
+  @state() private advancedWarfare: boolean = false;
   @state() private lobbyId = "";
   @state() private lobbyUrlSuffix = "";
   @state() private clients: ClientInfo[] = [];
@@ -768,6 +769,10 @@ export class HostLobbyModal extends BaseModal {
                     checked: this.waterNukes,
                   },
                   {
+                    labelKey: "game_settings.advanced_warfare",
+                    checked: this.advancedWarfare,
+                  },
+                  {
                     labelKey: "game_settings.doomsday_clock",
                     checked: this.doomsdayClock,
                     doomsdayClockSpeed: this.doomsdayClockSpeed,
@@ -1129,6 +1134,7 @@ export class HostLobbyModal extends BaseModal {
     this.whitelistEnabled = false;
     this.allowedPublicIds = "";
     this.waterNukes = false;
+    this.advancedWarfare = false;
     this.hostCheatsEnabled = false;
     this.hostCheatInfiniteGold = false;
     this.hostCheatInfiniteTroops = false;
@@ -1230,6 +1236,10 @@ export class HostLobbyModal extends BaseModal {
         break;
       case "game_settings.water_nukes":
         this.waterNukes = checked;
+        void this.putGameConfig();
+        break;
+      case "game_settings.advanced_warfare":
+        this.advancedWarfare = checked;
         void this.putGameConfig();
         break;
       case "game_settings.doomsday_clock":
@@ -1764,6 +1774,7 @@ export class HostLobbyModal extends BaseModal {
       customAlliances: this.customAlliances,
       customAllianceMinutes: this.customAllianceMinutes,
       waterNukes: this.waterNukes,
+      advancedWarfare: this.advancedWarfare,
       doomsdayClock: this.doomsdayClock,
       doomsdayClockSpeed: this.doomsdayClockSpeed,
       overtime: this.overtime,
@@ -1811,6 +1822,7 @@ export class HostLobbyModal extends BaseModal {
     this.customAlliances = config.customAlliances ?? false;
     this.customAllianceMinutes = config.customAllianceMinutes;
     this.waterNukes = config.waterNukes ?? false;
+    this.advancedWarfare = config.advancedWarfare ?? false;
     this.doomsdayClock = config.doomsdayClock ?? false;
     this.doomsdayClockSpeed = config.doomsdayClockSpeed ?? "normal";
     this.overtime = config.overtime ?? false;
@@ -1999,6 +2011,7 @@ export class HostLobbyModal extends BaseModal {
               ? (this.parseAllowedPublicIds() ?? [])
               : [],
             waterNukes: this.waterNukes ? true : null,
+            advancedWarfare: this.advancedWarfare,
             hostCheats: this.hostCheatsEnabled
               ? {
                   infiniteGold: this.hostCheatInfiniteGold || undefined,

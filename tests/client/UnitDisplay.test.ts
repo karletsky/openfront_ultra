@@ -1,6 +1,7 @@
 import {
   BuildMenus,
   PlayerBuildableUnitType,
+  requiredTechFor,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { EventBus } from "@openfront/shared/EventBus";
@@ -119,9 +120,13 @@ describe("mobile UnitDisplay layout", () => {
       await display.updateComplete;
 
       const grid = display.querySelector<HTMLElement>(".unit-display-grid");
-      expect(grid?.children).toHaveLength(BuildMenus.types.length - 1);
+      // One button per build-menu unit except the City (disabled here) and
+      // the tech-unlocked nukes, which have no quick-build button.
+      const shown =
+        BuildMenus.types.filter((t) => requiredTechFor(t) === null).length - 1;
+      expect(grid?.children).toHaveLength(shown);
       expect(grid?.style.getPropertyValue("--unit-display-columns")).toBe(
-        String(BuildMenus.types.length - 1),
+        String(shown),
       );
       expect(grid?.classList.contains("lg:grid-cols-none")).toBe(true);
       expect(grid?.classList.contains("lg:auto-cols-max")).toBe(true);

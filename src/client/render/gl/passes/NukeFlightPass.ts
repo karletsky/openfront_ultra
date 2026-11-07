@@ -26,6 +26,8 @@ import {
 } from "./NukeFlightTracker";
 
 const FLOATS_PER_INSTANCE = 8;
+/** Added to the kind for nukes SAMs can't target (see nuke-flight.vert). */
+const UNTARGETABLE_FLAG = 8;
 
 export class NukeFlightPass {
   private program: WebGLProgram;
@@ -131,7 +133,7 @@ export class NukeFlightPass {
       d[o + 2] = p.dirX;
       d[o + 3] = p.dirY;
       d[o + 4] = f.ownerID;
-      d[o + 5] = f.kind + (f.targetable ? 0 : 4);
+      d[o + 5] = f.kind + (f.targetable ? 0 : UNTARGETABLE_FLAG);
       d[o + 6] = f.progress;
       d[o + 7] = f.seed;
     }

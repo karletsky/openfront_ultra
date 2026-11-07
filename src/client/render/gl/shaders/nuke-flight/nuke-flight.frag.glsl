@@ -35,25 +35,36 @@ float noise1(float x) {
   return mix(hash11(i), hash11(i + 1.0), f);
 }
 
+// Kinds: 0 atom, 1 hydrogen, 2 MIRV, 3 MIRV warhead, 4 tactical, 5 EMP,
+// 6 dirty bomb.
 float bodyRadius(float kind) {
   if (kind < 0.5) return 0.11; // atom
   if (kind < 1.5) return 0.12; // hydrogen
   if (kind < 2.5) return 0.14; // MIRV bus
-  return 0.17; // warhead (short and stubby)
+  if (kind < 3.5) return 0.17; // warhead (short and stubby)
+  if (kind < 4.5) return 0.1; // tactical: slim
+  if (kind < 5.5) return 0.13; // EMP
+  return 0.15; // dirty bomb: squat canister
 }
 
 vec3 noseColor(float kind) {
   if (kind < 0.5) return vec3(0.95, 0.32, 0.12); // atom: red-orange
   if (kind < 1.5) return vec3(1.0, 0.8, 0.15); // hydrogen: yellow
   if (kind < 2.5) return vec3(0.68, 0.28, 0.95); // MIRV: violet
-  return vec3(1.0, 0.45, 0.2); // warhead
+  if (kind < 3.5) return vec3(1.0, 0.45, 0.2); // warhead
+  if (kind < 4.5) return vec3(0.35, 0.42, 0.3); // tactical: olive drab
+  if (kind < 5.5) return vec3(0.3, 0.85, 1.0); // EMP: electric cyan
+  return vec3(0.75, 0.95, 0.15); // dirty bomb: radioactive yellow-green
 }
 
 vec3 glowColor(float kind) {
   if (kind < 0.5) return vec3(1.0, 0.5, 0.15);
   if (kind < 1.5) return vec3(1.0, 0.85, 0.35);
   if (kind < 2.5) return vec3(0.8, 0.4, 1.0);
-  return vec3(1.0, 0.55, 0.25);
+  if (kind < 3.5) return vec3(1.0, 0.55, 0.25);
+  if (kind < 4.5) return vec3(1.0, 0.6, 0.3);
+  if (kind < 5.5) return vec3(0.35, 0.8, 1.0);
+  return vec3(0.6, 1.0, 0.25);
 }
 
 // Signed distance-ish to the missile silhouette (negative inside) and which
@@ -175,7 +186,8 @@ void main() {
       if (part > 1.5) base = ownerDark;
       vec3 bc = base * shade + spec;
       // Hydrogen bombs carry a hazard stripe pattern on the body.
-      if (vKind > 0.5 && vKind < 1.5 && part < 0.5 && p.x > -0.2 && p.x < 0.0) {
+      bool striped = (vKind > 0.5 && vKind < 1.5) || vKind > 5.5; // hydrogen, dirty
+      if (striped && part < 0.5 && p.x > -0.2 && p.x < 0.0) {
         float stripe = step(0.5, fract((p.x + p.y) * 22.0));
         bc = mix(bc, vec3(0.12) * shade + spec, stripe * 0.85);
       }

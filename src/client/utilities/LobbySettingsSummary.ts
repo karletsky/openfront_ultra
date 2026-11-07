@@ -128,6 +128,11 @@ export function notableLobbySettings(
       label: translateText("game_settings.water_nukes"),
       value: enabled,
     });
+  if (c.advancedWarfare)
+    items.push({
+      label: translateText("game_settings.advanced_warfare"),
+      value: enabled,
+    });
   if (c.doomsdayClock?.enabled)
     items.push({
       label: translateText("game_settings.doomsday_clock"),

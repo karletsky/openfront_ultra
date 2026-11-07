@@ -13,6 +13,7 @@ import {
   bulkCost,
   Cell,
   PlayerBuildableUnitType,
+  SiloNukes,
   Structures,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
@@ -47,16 +48,16 @@ import { UIState } from "../UIState";
 import { UserSettings } from "../UserSettings";
 import { GameView } from "../view";
 
-/** True for nuke types (AtomBomb, HydrogenBomb): ghost is preserved after placement so user can place multiple or keep selection (Enter/key confirm). */
+/** True for silo nukes (atom, hydrogen and the advanced warfare ones): ghost is preserved after placement so user can place multiple or keep selection (Enter/key confirm). */
 export function shouldPreserveGhostAfterBuild(unitType: UnitType): boolean {
-  return unitType === UnitType.AtomBomb || unitType === UnitType.HydrogenBomb;
+  return SiloNukes.has(unitType);
 }
 
 function requiresMissileSilo(unitType: UnitType | null | undefined): boolean {
   return (
-    unitType === UnitType.AtomBomb ||
-    unitType === UnitType.HydrogenBomb ||
-    unitType === UnitType.MIRV
+    unitType !== null &&
+    unitType !== undefined &&
+    (SiloNukes.has(unitType) || unitType === UnitType.MIRV)
   );
 }
 
@@ -520,10 +521,7 @@ export class BuildPreviewController implements Controller {
     if (tileRef === undefined || !this.ghostUnit) return "none";
     const myPlayer = this.game.myPlayer();
     const nukeType = this.ghostUnit.buildableUnit.type;
-    if (
-      !myPlayer ||
-      (nukeType !== UnitType.AtomBomb && nukeType !== UnitType.HydrogenBomb)
-    ) {
+    if (!myPlayer || !SiloNukes.has(nukeType)) {
       return "none";
     }
     // Nuking any ally breaks the alliance, but only betraying a connected,
@@ -765,7 +763,7 @@ export class BuildPreviewController implements Controller {
   private canShowNukeTrajectory(tileRef: TileRef | undefined): boolean {
     if (!this.ghostUnit || tileRef === undefined) return false;
     const type = this.ghostUnit.buildableUnit.type;
-    return type === UnitType.AtomBomb || type === UnitType.HydrogenBomb;
+    return SiloNukes.has(type);
   }
 
   private buildTrajectoryStatic(
@@ -852,7 +850,12 @@ export class BuildPreviewController implements Controller {
       }
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
-        return this.game.config().nukeMagnitudes(u.type).outer;
+      case UnitType.TacticalNuke:
+      case UnitType.EMPBomb:
+      case UnitType.DirtyBomb:
+        return this.game
+          .config()
+          .nukeMagnitudes(u.type, this.game.myPlayer() ?? undefined).outer;
       case UnitType.Factory:
         return this.game.config().trainStationMaxRange();
       case UnitType.DefensePost:
@@ -1182,10 +1185,9 @@ export class BuildPreviewController implements Controller {
       }
 
       const isNuke = unitType === UnitType.AtomBomb;
-      const rocketDirectionUp =
-        unitType === UnitType.AtomBomb || unitType === UnitType.HydrogenBomb
-          ? this.uiState.rocketDirectionUp
-          : undefined;
+      const rocketDirectionUp = SiloNukes.has(unitType)
+        ? this.uiState.rocketDirectionUp
+        : undefined;
       this.eventBus.emit(
         new BuildUnitIntentEvent(
           unitType,
@@ -1209,9 +1211,7 @@ export class BuildPreviewController implements Controller {
     const duration = this.userSettings.nukeAllianceSafetyDuration();
     if (
       duration <= 0 ||
-      (unitType !== UnitType.AtomBomb &&
-        unitType !== UnitType.HydrogenBomb &&
-        unitType !== UnitType.MIRV)
+      (!SiloNukes.has(unitType) && unitType !== UnitType.MIRV)
     ) {
       return false;
     }

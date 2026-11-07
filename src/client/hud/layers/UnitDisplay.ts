@@ -1,6 +1,7 @@
 import {
   BuildableUnit,
   BuildMenus,
+  requiredTechFor,
   Gold,
   PlayerBuildableUnitType,
   UnitType,
@@ -113,8 +114,11 @@ export class UnitDisplay extends LitElement implements Controller {
     // the onboarding tutorial fires its atom bomb from here on every screen.
     if (this.tutorialMode) this.classList.remove("hidden");
 
-    this.enabledUnitCount = BuildMenus.types.filter((unitType) =>
-      this.isUnitDisplayed(unitType),
+    // The bar has a quick-build button for every build-menu unit except the
+    // tech-unlocked advanced warfare nukes (built from the build menu).
+    this.enabledUnitCount = BuildMenus.types.filter(
+      (unitType) =>
+        requiredTechFor(unitType) === null && this.isUnitDisplayed(unitType),
     ).length;
     this.allDisabled = this.enabledUnitCount === 0;
 

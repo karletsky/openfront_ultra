@@ -62,7 +62,7 @@ const ATLAS_COLS = STRUCTURE_ORDER.length;
 // ---------------------------------------------------------------------------
 
 // Per-instance: x, y, ownerID, underConstruction, atlasIdx, markedForDeletion
-const FLOATS_PER_INSTANCE = 6;
+const FLOATS_PER_INSTANCE = 7;
 const BYTES_PER_INSTANCE = FLOATS_PER_INSTANCE * 4;
 
 // ---------------------------------------------------------------------------
@@ -97,6 +97,8 @@ export class StructurePass {
   private uIconColor: WebGLUniformLocation;
   private uIconDarken: WebGLUniformLocation;
   private uTime: WebGLUniformLocation;
+  private uGameTick: WebGLUniformLocation | null;
+  private gameTick = 0;
   private uHoverOwner: WebGLUniformLocation;
   // Anchored at construction so the uniform stays small (float32 precision).
   private readonly startTime = performance.now();
@@ -199,6 +201,7 @@ export class StructurePass {
     this.uIconColor = gl.getUniformLocation(this.program, "uIconColor")!;
     this.uIconDarken = gl.getUniformLocation(this.program, "uIconDarken")!;
     this.uTime = gl.getUniformLocation(this.program, "uTime")!;
+    this.uGameTick = gl.getUniformLocation(this.program, "uGameTick");
     this.uHoverOwner = gl.getUniformLocation(this.program, "uHoverOwner")!;
 
     // Texture unit bindings + ghost defaults
@@ -270,9 +273,10 @@ export class StructurePass {
     gl.vertexAttribPointer(1, 4, gl.FLOAT, false, BYTES_PER_INSTANCE, 0);
     gl.vertexAttribDivisor(1, 1);
 
-    // Attribute 2: per-instance vec2 (atlasIdx, markedForDeletion)
+    // Attribute 2: per-instance vec3 (atlasIdx, markedForDeletion,
+    // EMP-disabled-until tick)
     gl.enableVertexAttribArray(2);
-    gl.vertexAttribPointer(2, 2, gl.FLOAT, false, BYTES_PER_INSTANCE, 16);
+    gl.vertexAttribPointer(2, 3, gl.FLOAT, false, BYTES_PER_INSTANCE, 16);
     gl.vertexAttribDivisor(2, 1);
 
     gl.bindVertexArray(null);
@@ -304,6 +308,11 @@ export class StructurePass {
     this.hoverOwner = ownerID;
   }
 
+  /** Current game tick: EMP-disabled structures stay dimmed until then. */
+  setGameTick(tick: number): void {
+    this.gameTick = tick;
+  }
+
   updateStructures(units: Map<number, UnitState>): void {
     let count = 0;
 
@@ -325,6 +334,7 @@ export class StructurePass {
       this.instanceBuf.float32[off + 4] = atlasIdx;
       this.instanceBuf.float32[off + 5] =
         unit.markedForDeletion !== false ? 1 : 0;
+      this.instanceBuf.float32[off + 6] = unit.disabledUntil ?? -1;
 
       count++;
     }
@@ -410,6 +420,7 @@ export class StructurePass {
     gl.uniform1f(this.uIconDarken, ss.iconDarken);
     // Seconds; drives the structures-effect gradient scroll / transition cycle.
     gl.uniform1f(this.uTime, (performance.now() - this.startTime) / 1000);
+    gl.uniform1f(this.uGameTick, this.gameTick);
     gl.uniform1f(this.uHoverOwner, this.hoverOwner);
 
     gl.activeTexture(gl.TEXTURE0);
