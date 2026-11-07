@@ -114,6 +114,12 @@ export const GraphicsOverridesSchema = z
         enhanced: z.boolean(),
       })
       .partial(),
+    glow: z
+      .object({
+        // Bloom around explosions, nuke plumes and EMP pulses.
+        enabled: z.boolean(),
+      })
+      .partial(),
     units: z
       .object({
         // Procedural nukes in flight, fireball detonations and outlined

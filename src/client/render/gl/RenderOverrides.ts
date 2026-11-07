@@ -167,6 +167,9 @@ export function applyGraphicsOverrides(
   if (overrides.terrain?.mountainColor !== undefined) {
     settings.terrain.mountainColor = overrides.terrain.mountainColor;
   }
+  if (overrides.glow?.enabled !== undefined) {
+    settings.glow.enabled = overrides.glow.enabled;
+  }
   if (overrides.units?.enhanced !== undefined) {
     // One user-facing toggle for all unit graphics upgrades.
     settings.unit.enhancedNukes = overrides.units.enhanced;

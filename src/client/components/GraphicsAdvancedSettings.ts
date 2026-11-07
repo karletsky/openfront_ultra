@@ -917,6 +917,22 @@ export class GraphicsAdvancedSettings extends LitElement {
     this.patchPassEnabled({ fx: !this.currentSpecialEffects() });
   }
 
+  private currentGlow(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().glow?.enabled ??
+      renderDefaults.glow.enabled
+    );
+  }
+
+  private onToggleGlow() {
+    const current = this.userSettings.graphicsOverrides();
+    this.writeOverrides({
+      ...current,
+      glow: { ...current.glow, enabled: !this.currentGlow() },
+    });
+    this.requestUpdate();
+  }
+
   private currentEnhancedUnits(): boolean {
     return (
       this.userSettings.graphicsOverrides().units?.enhanced ??
@@ -1515,6 +1531,14 @@ export class GraphicsAdvancedSettings extends LitElement {
         id="special-effects-toggle"
         .checked=${this.currentSpecialEffects()}
         @change=${this.onToggleSpecialEffects}
+      ></setting-toggle>
+
+      <setting-toggle
+        label=${translateText("graphics_setting.glow_label")}
+        description=${translateText("graphics_setting.glow_desc")}
+        id="glow-toggle"
+        .checked=${this.currentGlow()}
+        @change=${this.onToggleGlow}
       ></setting-toggle>
 
       <setting-toggle

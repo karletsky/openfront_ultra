@@ -1159,6 +1159,8 @@
     "enhanced_units_label": "Enhanced units",
     "fallout_desc": "Show the green nuclear fallout glow on irradiated territory. Disable to improve performance",
     "fallout_label": "Fallout effects",
+    "glow_desc": "Explosions, nuke exhausts and EMP pulses glow and light up their surroundings. Disable to improve performance",
+    "glow_label": "Glow effects",
     "highland_color_desc": "Base color for higher-elevation terrain.",
     "highland_color_label": "Highland color",
     "highlight_brighten_desc": "How strongly the border brightens on hover (0 to disable)",

@@ -216,6 +216,11 @@ export class FxPass {
     this.attackRingPass.draw(cameraMatrix, zoom);
   }
 
+  /** The light-emitting part (fireballs, EMP pulses, SAM hits) for bloom. */
+  drawEmissive(cameraMatrix: Float32Array): void {
+    this.shockwavePass.draw(cameraMatrix);
+  }
+
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------

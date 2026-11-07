@@ -9,6 +9,7 @@ uniform float uLight; // directional lighting strength
 uniform float uHaze; // distance haze strength
 uniform float uHazeStart;
 uniform float uHazeEnd;
+uniform int uEmissive; // 1: draping the glow layer (raw colour, no lighting)
 
 in vec2 vImgUV;
 in vec3 vNormal;
@@ -19,6 +20,12 @@ out vec4 fragColor;
 const vec3 LIGHT_DIR = vec3(-0.45, -0.55, 0.70);
 
 void main() {
+  if (uEmissive != 0) {
+    bool inImg = all(greaterThanEqual(vImgUV, vec2(0.0))) &&
+      all(lessThanEqual(vImgUV, vec2(1.0)));
+    fragColor = inImg ? texture(uScene, vImgUV) : vec4(0.0);
+    return;
+  }
   vec3 col;
   if (any(lessThan(vImgUV, vec2(0.0))) || any(greaterThan(vImgUV, vec2(1.0)))) {
     col = uBackground;

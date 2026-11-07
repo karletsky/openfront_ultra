@@ -56,6 +56,7 @@ export class Terrain3DPass {
       "uHaze",
       "uHazeStart",
       "uHazeEnd",
+      "uEmissive",
     ]) {
       this.u[name] = gl.getUniformLocation(this.program, name);
     }
@@ -197,6 +198,23 @@ export class Terrain3DPass {
     gl.bindVertexArray(null);
     gl.disable(gl.DEPTH_TEST);
     gl.activeTexture(gl.TEXTURE0);
+  }
+
+  /**
+   * Glow: drape the image-space emissive layer over the same mesh into the
+   * bound (emissive) framebuffer, depth-tested so hills hide glows behind.
+   */
+  drawEmissive(
+    view: View3D,
+    imgCam: Float32Array,
+    emissiveTex: WebGLTexture,
+  ): void {
+    const gl = this.gl;
+    gl.useProgram(this.program);
+    gl.uniform1i(this.u.uEmissive, 1);
+    this.draw(view, imgCam, emissiveTex, [0, 0, 0]);
+    gl.useProgram(this.program);
+    gl.uniform1i(this.u.uEmissive, 0);
   }
 
   dispose(): void {

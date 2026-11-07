@@ -96,6 +96,12 @@ export interface RenderSettings {
    * Tilted 3D view: the flat map is draped over a terrain mesh and seen
    * through a perspective camera (see GPURenderer.renderFrame3D).
    */
+  /** Bloom around light-emitting effects (GlowPass). */
+  glow: {
+    enabled: boolean;
+    /** Glow brightness (0 = off). */
+    intensity: number;
+  };
   view3d: {
     enabled: boolean;
     /** Camera tilt from straight down, degrees (0-60). */

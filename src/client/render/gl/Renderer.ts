@@ -40,6 +40,7 @@ import { DefenseCoveragePass } from "./passes/DefenseCoveragePass";
 import { FalloutBloomPass } from "./passes/FalloutBloomPass";
 import { FalloutLightPass } from "./passes/FalloutLightPass";
 import { FxPass } from "./passes/fx-pass";
+import { GlowPass } from "./passes/GlowPass";
 import { LightmapPass } from "./passes/LightmapPass";
 import { MapLayerPass } from "./passes/MapLayerPass";
 import { MoveIndicatorPass } from "./passes/MoveIndicatorPass";
@@ -145,6 +146,9 @@ export class GPURenderer {
   private terrain3DPass: Terrain3DPass;
   /** Offscreen image the flat map is drawn into while the 3D view is on. */
   private mapTarget: RenderTarget;
+  /** 3D view: the glowing effects drawn in map-image space (draped later). */
+  private emissiveImage: RenderTarget;
+  private glowPass: GlowPass;
   /** 2D camera the offscreen map image was drawn with this frame. */
   private imgCam = new Float32Array(9);
   /** Top-down camera at the true zoom, for laying out billboards. */
@@ -691,6 +695,12 @@ export class GPURenderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.sceneTarget = { fbo: sceneFbo, tex: sceneTex, w: 1, h: 1 };
     this.mapTarget = createRenderTarget(gl, 1, 1);
+    this.emissiveImage = createRenderTarget(gl, 1, 1);
+    this.glowPass = new GlowPass(
+      gl,
+      this.settings.glow,
+      this.rawBindFramebuffer,
+    );
 
     // --- Alt-view passes ---
     this.affiliationPalette = new AffiliationPalette(gl, this.settings);
@@ -1380,7 +1390,24 @@ export class GPURenderer {
       this.billboardsOn = false;
       applyBillboardState(this.gl, BILLBOARDS_OFF, null);
     }
-    this.renderFrame2D(this.camera.getMatrix(), this.camera.zoom);
+    const cam = this.camera.getMatrix();
+    this.renderFrame2D(cam, this.camera.zoom);
+    if (this.glowActive()) {
+      this.glowPass.beginEmissive(this.canvas.width, this.canvas.height);
+      this.drawEmissive(cam, this.camera.zoom);
+      this.glowPass.composite();
+    }
+  }
+
+  private glowActive(): boolean {
+    return this.glowPass.enabled() && !this.altView;
+  }
+
+  /** The light-emitting effects, again, for the glow layer. */
+  private drawEmissive(cam: Float32Array, zoom: number): void {
+    const pe = this.settings.passEnabled;
+    if (pe.fx) this.fxPass.drawEmissive(cam);
+    if (pe.unit) this.nukeFlightPass.draw(cam, zoom);
   }
 
   /**
@@ -1426,6 +1453,21 @@ export class GPURenderer {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.terrain3DPass.draw(view, this.imgCam, this.mapTarget.tex, bgf);
 
+    // Glow: the emissive effects in image space, draped like the map.
+    const glow = this.glowActive();
+    if (glow) {
+      resizeRenderTarget(gl, this.emissiveImage, cw, ch);
+      this.rawBindFramebuffer(gl.FRAMEBUFFER, this.emissiveImage.fbo);
+      gl.viewport(0, 0, cw, ch);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      this.drawEmissive(this.imgCam, ortho.zoom);
+      this.rawBindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, cw, ch);
+    }
+
     this.billboardsOn = true;
     applyBillboardState(
       gl,
@@ -1448,6 +1490,16 @@ export class GPURenderer {
       this.bbCam,
     );
     this.renderBillboards(this.bbCam, this.camera.zoom);
+
+    if (glow) {
+      this.glowPass.beginEmissive(cw, ch);
+      this.terrain3DPass.drawEmissive(
+        view,
+        this.imgCam,
+        this.emissiveImage.tex,
+      );
+      this.glowPass.composite();
+    }
   }
 
   private renderFrame2D(
@@ -1689,6 +1741,9 @@ export class GPURenderer {
     }
     this.terrainPass.dispose();
     this.terrain3DPass.dispose();
+    this.glowPass.dispose();
+    this.gl.deleteFramebuffer(this.emissiveImage.fbo);
+    this.gl.deleteTexture(this.emissiveImage.tex);
     this.gl.deleteFramebuffer(this.mapTarget.fbo);
     this.gl.deleteTexture(this.mapTarget.tex);
     this.territoryPass.dispose();
