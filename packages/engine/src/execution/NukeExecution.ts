@@ -58,7 +58,7 @@ export class NukeExecution implements Execution {
   init(mg: Game, ticks: number): void {
     this.mg = mg;
     if (this.speed === -1) {
-      this.speed = this.mg.config().nukeSpeed(this.nukeType);
+      this.speed = this.mg.config().nukeSpeed(this.nukeType, this.player);
     }
     this.pathFinder = UniversalPathFinding.Parabola(mg, {
       increment: this.speed,
@@ -77,7 +77,9 @@ export class NukeExecution implements Execution {
     if (this.nuke === null) {
       throw new Error("Not initialized");
     }
-    const magnitude = this.mg.config().nukeMagnitudes(this.nuke.type());
+    const magnitude = this.mg
+      .config()
+      .nukeMagnitudes(this.nuke.type(), this.player);
     const rand = new PseudoRandom(this.mg.ticks());
     const inner2 = magnitude.inner * magnitude.inner;
     const outer2 = magnitude.outer * magnitude.outer;
@@ -157,7 +159,9 @@ export class NukeExecution implements Execution {
       return;
     }
 
-    const magnitude = this.mg.config().nukeMagnitudes(this.nuke.type());
+    const magnitude = this.mg
+      .config()
+      .nukeMagnitudes(this.nuke.type(), this.player);
 
     const playersToBreakAllianceWith = listNukeBreakAlliance({
       game: this.mg,
@@ -357,7 +361,7 @@ export class NukeExecution implements Execution {
       return;
     }
     const targetRangeSquared =
-      this.mg.config().defaultNukeTargetableRange() ** 2;
+      this.mg.config().defaultNukeTargetableRange(this.player) ** 2;
     const targetTile = this.nuke.targetTile();
     this.nuke.setTargetable(
       this.isTargetable(targetTile!, this.nuke.tile(), targetRangeSquared),
@@ -372,7 +376,7 @@ export class NukeExecution implements Execution {
     const mg = this.mg;
     const config = mg.config();
 
-    const magnitude = config.nukeMagnitudes(this.nuke.type());
+    const magnitude = config.nukeMagnitudes(this.nuke.type(), this.player);
     const toDestroy = this.tilesToDestroy();
 
     // Retrieve all impacted players and the number of tiles

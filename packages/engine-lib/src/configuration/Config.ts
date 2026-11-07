@@ -9,6 +9,7 @@ import {
 } from "@openfront/engine-api/game/GameTypes";
 import { PlayerLike } from "@openfront/engine-api/game/ReadViews";
 import {
+  TECH_EFFECTS,
   techCost,
   TechId,
   techResearchTicks,
@@ -171,7 +172,13 @@ export class Config {
   msPerTick(): number {
     return 100;
   }
-  SAMCooldown(): number {
+  /** SAM reload ticks; Missile Defense shortens it for the SAM's owner. */
+  SAMCooldown(owner?: PlayerLike): number {
+    if (owner?.hasTech(TechId.MissileDefense)) {
+      return Math.floor(
+        (90 * (100 - TECH_EFFECTS.missileDefenseCooldownPct)) / 100,
+      );
+    }
     return 90;
   }
   SiloCooldown(): number {
@@ -375,10 +382,13 @@ export class Config {
           .map((city) => city.level())
           .reduce((a, b) => a + b, 0) * this.cityTroopIncrease()
       : 0;
-    const maxTroops =
+    let maxTroops =
       player.type() === PlayerType.Human && this.hasInfiniteTroopsFor(player)
         ? 1_000_000_000
         : 2 * (pow(player.numTilesOwned(), 0.6) * 1000 + 50000) + cityTroops;
+    if (player.hasTech(TechId.Logistics)) {
+      maxTroops *= (100 + TECH_EFFECTS.logisticsMaxTroopsPct) / 100;
+    }
 
     // The tutorial's nation and tribe never spend troops on attacks: at their
     // usual cap they'd bank more than a new player could beat.
@@ -439,10 +449,30 @@ export class Config {
       }
     }
 
+    if (player.hasTech(TechId.Conscription)) {
+      toAdd *= (100 + TECH_EFFECTS.conscriptionGrowthPct) / 100;
+    }
+
     return Math.min(player.troops() + toAdd, max) - player.troops();
   }
 
-  nukeMagnitudes(unitType: UnitType): NukeMagnitude {
+  /**
+   * Blast radii. With `owner`, Enhanced Yield scales them for that player's
+   * nukes; without, the base radii (e.g. for AI planning).
+   */
+  nukeMagnitudes(unitType: UnitType, owner?: PlayerLike): NukeMagnitude {
+    const base = this.baseNukeMagnitudes(unitType);
+    if (owner?.hasTech(TechId.EnhancedYield)) {
+      const pct = 100 + TECH_EFFECTS.enhancedYieldRadiusPct;
+      return {
+        inner: Math.floor((base.inner * pct) / 100),
+        outer: Math.floor((base.outer * pct) / 100),
+      };
+    }
+    return base;
+  }
+
+  private baseNukeMagnitudes(unitType: UnitType): NukeMagnitude {
     switch (unitType) {
       case UnitType.MIRVWarhead:
         return { inner: 12, outer: 18 };

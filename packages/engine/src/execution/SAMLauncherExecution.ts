@@ -121,9 +121,15 @@ class SAMTargetingSystem {
       : undefined;
   }
 
-  private isTargetableAt(tile: TileRef, src: TileRef, dst: TileRef): boolean {
+  private isTargetableAt(
+    tile: TileRef,
+    src: TileRef,
+    dst: TileRef,
+    nukeOwner: Player,
+  ): boolean {
+    // Stealth Warheads shrink this range for the nuke's owner.
     const targetRangeSquared =
-      this.mg.config().defaultNukeTargetableRange() ** 2;
+      this.mg.config().defaultNukeTargetableRange(nukeOwner) ** 2;
     return (
       this.mg.euclideanDistSquared(tile, dst) < targetRangeSquared ||
       this.mg.euclideanDistSquared(tile, src) < targetRangeSquared
@@ -169,7 +175,7 @@ class SAMTargetingSystem {
         nukeTicks >= samTicks &&
         src !== undefined &&
         dst !== undefined &&
-        this.isTargetableAt(tile, src, dst)
+        this.isTargetableAt(tile, src, dst, unit.owner())
       ) {
         return {
           tick: nukeTicks - samTicks,
@@ -371,7 +377,8 @@ export class SAMLauncherExecution implements Execution {
     while (this.sam.missileTimerQueue().length > 0) {
       const frontTime = this.sam.missileTimerQueue()[0];
       const cooldown =
-        this.mg.config().SAMCooldown() - (this.mg.ticks() - frontTime);
+        this.mg.config().SAMCooldown(this.sam.owner()) -
+        (this.mg.ticks() - frontTime);
 
       if (cooldown > 0) {
         break;

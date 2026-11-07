@@ -25,7 +25,7 @@ export enum TechId {
   // Naval
   Shipbuilding = "shipbuilding",
   ArmorPlating = "armor_plating",
-  FastTransports = "fast_transports",
+  Amphibious = "amphibious",
   NavalGunnery = "naval_gunnery",
   // Nuclear
   TacticalNukes = "tactical_nukes",
@@ -90,7 +90,7 @@ export const TECHS: readonly TechDef[] = [
 
   T(TechId.Shipbuilding, TechBranch.Naval, 1),
   T(TechId.ArmorPlating, TechBranch.Naval, 2, [TechId.Shipbuilding]),
-  T(TechId.FastTransports, TechBranch.Naval, 2, [TechId.Shipbuilding]),
+  T(TechId.Amphibious, TechBranch.Naval, 2, [TechId.Shipbuilding]),
   T(TechId.NavalGunnery, TechBranch.Naval, 3, [TechId.ArmorPlating]),
 
   T(TechId.TacticalNukes, TechBranch.Nuclear, 1),
@@ -145,8 +145,8 @@ export const TECH_EFFECTS = {
   shipbuildingDiscountPct: 25,
   /** Armor Plating: +% warship max health. */
   armorPlatingHealthPct: 30,
-  /** Fast Transports: transport ships move this many extra tiles per step. */
-  fastTransportsExtraSpeed: 1,
+  /** Amphibious Warfare: extra transport ships at sea at once. */
+  amphibiousExtraBoats: 3,
   /** Naval Gunnery: +% warship shell damage. */
   navalGunneryDamagePct: 25,
   /** Missile Propulsion: +% nuke flight speed. */

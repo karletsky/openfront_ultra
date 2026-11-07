@@ -93,12 +93,8 @@ export function createProgram(
   fragSrc: string,
   name: string,
 ): WebGLProgram {
-  const vs = compileShader(
-    gl,
-    gl.VERTEX_SHADER,
-    injectBillboard(vertSrc),
-    `${name} vertex`,
-  );
+  const fullVertSrc = injectBillboard(vertSrc);
+  const vs = compileShader(gl, gl.VERTEX_SHADER, fullVertSrc, `${name} vertex`);
   const fs = compileShader(gl, gl.FRAGMENT_SHADER, fragSrc, `${name} fragment`);
   const program = gl.createProgram()!;
   gl.attachShader(program, vs);
@@ -112,7 +108,9 @@ export function createProgram(
     gl.deleteProgram(program);
     throw err;
   }
-  registerBillboardProgram(gl, program);
+  // Only overlays that opted into the 3D billboard projection need its
+  // uniforms managed; every other program is left untouched.
+  if (fullVertSrc !== vertSrc) registerBillboardProgram(gl, program);
   return program;
 }
 

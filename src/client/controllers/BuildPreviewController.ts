@@ -537,7 +537,9 @@ export class BuildPreviewController implements Controller {
         this.traitorMarkAllySmallIds.add(ally.smallID());
       }
     }
-    const magnitude = this.game.config().nukeMagnitudes(nukeType);
+    const magnitude = this.game
+      .config()
+      .nukeMagnitudes(nukeType, this.game.myPlayer() ?? undefined);
     const threshold = this.game.config().nukeAllianceBreakThreshold();
     if (
       wouldNukeBreakAlliance({

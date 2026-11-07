@@ -14,6 +14,7 @@ import {
   GameUpdateType,
   UnitUpdate,
 } from "@openfront/engine-api/game/GameUpdates";
+import { TECH_EFFECTS, TechId } from "@openfront/engine-api/game/Tech";
 import { maxHealthWithVeterancy } from "@openfront/engine-lib/game/Veterancy";
 import {
   snapshotType,
@@ -72,7 +73,9 @@ export class UnitImpl implements Unit {
     params: AllUnitParams = {},
   ) {
     this._lastTile = _tile;
-    this._health = toInt(this.mg.unitInfo(_type).maxHealth ?? 1);
+    this._health = toInt(
+      armorPlated(_type, _owner, this.mg.unitInfo(_type).maxHealth ?? 1),
+    );
     this._targetTile =
       "targetTile" in params ? (params.targetTile ?? undefined) : undefined;
     this._targetPlayer =
@@ -282,7 +285,11 @@ export class UnitImpl implements Unit {
   }
 
   maxHealth(): number {
-    const base = this.info().maxHealth ?? 1;
+    const base = armorPlated(
+      this._type,
+      this._owner,
+      this.info().maxHealth ?? 1,
+    );
     // veterancy() is 0 for non-warships, so this returns base for them.
     return maxHealthWithVeterancy(
       base,
@@ -970,3 +977,11 @@ export const UnitSnapshot = snapshotType({
   }),
 });
 export type UnitState = z.infer<typeof UnitSnapshot.schema>;
+
+/** Advanced warfare: Armor Plating raises warship max health (integer %). */
+function armorPlated(type: UnitType, owner: Player, base: number): number {
+  if (type !== UnitType.Warship || !owner.hasTech(TechId.ArmorPlating)) {
+    return base;
+  }
+  return Math.floor((base * (100 + TECH_EFFECTS.armorPlatingHealthPct)) / 100);
+}

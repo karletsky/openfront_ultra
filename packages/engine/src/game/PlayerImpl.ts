@@ -1725,7 +1725,7 @@ export class PlayerImpl implements Player {
       nukeType !== UnitType.MIRV &&
       !gameOver
     ) {
-      const magnitude = config.nukeMagnitudes(nukeType);
+      const magnitude = config.nukeMagnitudes(nukeType, this);
       const wouldHitTeammate = mg.anyUnitNearby(
         tile,
         magnitude.outer,

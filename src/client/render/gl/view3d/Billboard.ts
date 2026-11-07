@@ -73,7 +73,10 @@ export function registerBillboardProgram(
   const heightLoc = gl.getUniformLocation(program, "uBBHeight");
   const enabled = gl.getUniformLocation(program, "uBBEnabled");
   if (!heightLoc && !enabled) return;
-  const prev = gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null;
+  // Restore whatever program was bound (optional call: some test doubles of
+  // the GL context don't implement getParameter).
+  const prev = (gl.getParameter?.(gl.CURRENT_PROGRAM) ??
+    null) as WebGLProgram | null;
   gl.useProgram(program);
   if (heightLoc) gl.uniform1i(heightLoc, BILLBOARD_HEIGHT_UNIT);
   gl.useProgram(prev);

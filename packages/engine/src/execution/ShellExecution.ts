@@ -1,5 +1,6 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import { UnitType } from "@openfront/engine-api/game/GameTypes";
+import { TECH_EFFECTS, TechId } from "@openfront/engine-api/game/Tech";
 import { PseudoRandom } from "@openfront/engine-lib/PseudoRandom";
 import {
   zInt,
@@ -108,6 +109,15 @@ export class ShellExecution implements Execution {
       const bonusPercent = this.mg.config().warshipVeterancyShellDamageBonus();
       damageMultiplier = Math.floor(
         (damageMultiplier * (100 + veterancy * bonusPercent)) / 100,
+      );
+    }
+
+    if (
+      this.ownerUnit.type() === UnitType.Warship &&
+      this.ownerUnit.owner().hasTech(TechId.NavalGunnery)
+    ) {
+      damageMultiplier = Math.floor(
+        (damageMultiplier * (100 + TECH_EFFECTS.navalGunneryDamagePct)) / 100,
       );
     }
 

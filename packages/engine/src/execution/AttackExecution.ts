@@ -9,6 +9,7 @@ import {
   TerraNullius,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
+import { TECH_EFFECTS, TechId } from "@openfront/engine-api/game/Tech";
 import { renderTroops } from "@openfront/engine-lib/Format";
 import { PseudoRandom } from "@openfront/engine-lib/PseudoRandom";
 import {
@@ -396,6 +397,7 @@ export class AttackExecution implements Execution {
                 defender.isDisconnected() && this._owner.isOnSameTeam(defender),
             },
       defenderHasDefensePost,
+      attackerLossMultiplier: attackerLossMultiplier(this._owner, defender),
       falloutRatio: this.mg.hasFallout(tile)
         ? this.mg.numTilesWithFallout() / this.mg.numLandTiles()
         : null,
@@ -578,3 +580,18 @@ export const AttackExecutionSnapshot = execSnapshotType({
   schema: AttackExecutionStateSchema,
   cls: () => AttackExecution,
 });
+
+/** Advanced warfare: Shock Troops (attacker) and Fortifications (defender). */
+function attackerLossMultiplier(
+  attacker: Player,
+  defender: Player | null,
+): number {
+  let m = 1;
+  if (attacker.hasTech(TechId.ShockTroops)) {
+    m *= (100 - TECH_EFFECTS.shockTroopsLossReductionPct) / 100;
+  }
+  if (defender?.hasTech(TechId.Fortifications)) {
+    m *= (100 + TECH_EFFECTS.fortificationsDefensePct) / 100;
+  }
+  return m;
+}

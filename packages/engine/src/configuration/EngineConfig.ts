@@ -10,6 +10,11 @@ import {
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { PlayerLike } from "@openfront/engine-api/game/ReadViews";
+import {
+  scalePct,
+  TECH_EFFECTS,
+  TechId,
+} from "@openfront/engine-api/game/Tech";
 import { TeamCountConfig } from "@openfront/engine-api/Schemas";
 import { NukeType } from "@openfront/engine-api/StatsSchemas";
 import { Config } from "@openfront/engine-lib/configuration/Config";
@@ -41,6 +46,11 @@ export interface AttackLogicInput {
   falloutRatio: number | null;
   /** Tiles on the attack front this tick (plus jitter); fixed for the tick. */
   borderSize: number;
+  /**
+   * Advanced warfare: scales the attacker's troop loss (Shock Troops lowers
+   * it, the defender's Fortifications raise it). 1 / absent = no effect.
+   */
+  attackerLossMultiplier?: number;
 }
 
 export interface AttackLogicResult {
@@ -264,7 +274,10 @@ export class EngineConfig extends Config {
     }
     const distPenalty = citiesVisited * 5_000;
     const gold = Math.max(5000, baseGold - distPenalty);
-    return toInt(gold * this.goldMultiplierFor(player));
+    return tradeNetworksBonus(
+      toInt(gold * this.goldMultiplierFor(player)),
+      player,
+    );
   }
 
   trainStationMinRange(): number {
@@ -278,7 +291,10 @@ export class EngineConfig extends Config {
     // Sigmoid: concave start, sharp S-curve middle, linear end - heavily punishes trades under range debuff.
     const debuff = this.tradeShipShortRangeDebuff();
     const baseGold = 75_000 / (1 + exp(-0.03 * (dist - debuff))) + 50 * dist;
-    return BigInt(Math.floor(baseGold * this.goldMultiplierFor(player)));
+    return tradeNetworksBonus(
+      BigInt(Math.floor(baseGold * this.goldMultiplierFor(player))),
+      player,
+    );
   }
 
   /**
@@ -340,7 +356,10 @@ export class EngineConfig extends Config {
     if (cached !== undefined) {
       return cached;
     }
-    const info = { ...super.unitInfo(type), cost: this.unitCost(type) };
+    const info = {
+      ...super.unitInfo(type),
+      cost: withTechDiscount(type, this.unitCost(type)),
+    };
     this.engineUnitInfoCache.set(type, info);
     return info;
   }
@@ -506,11 +525,13 @@ export class EngineConfig extends Config {
   minDistanceBetweenPlayers(): number {
     return 30;
   }
-  boatMaxNumber(): number {
+  boatMaxNumber(player?: PlayerLike): number {
     if (this.isUnitDisabled(UnitType.TransportShip)) {
       return 0;
     }
-    return 3;
+    return player?.hasTech(TechId.Amphibious)
+      ? 3 + TECH_EFFECTS.amphibiousExtraBoats
+      : 3;
   }
   numBots(): number {
     return this.bots();
@@ -543,10 +564,13 @@ export class EngineConfig extends Config {
       tileCost *= fallout;
     }
 
+    const lossMult = input.attackerLossMultiplier ?? 1;
+
     if (defender === null) {
       const tickBudget = input.borderSize * 2;
       return {
-        attackerTroopLoss: mag / (attacker.type === PlayerType.Bot ? 10 : 5),
+        attackerTroopLoss:
+          (mag / (attacker.type === PlayerType.Bot ? 10 : 5)) * lossMult,
         defenderTroopLoss: 0,
         tickFraction:
           within(
@@ -592,6 +616,7 @@ export class EngineConfig extends Config {
     // (packed land is expensive, spread-thin land is cheap).
     const troopRatio = defender.troops / attackTroops;
     const attackerTroopLoss =
+      lossMult *
       mag *
       traitorLossMod *
       within(troopRatio, CHEAPEST_TROOP_RATIO, 2) *
@@ -681,10 +706,27 @@ export class EngineConfig extends Config {
     } else {
       baseRate = 100n;
     }
-    return BigInt(Math.floor(Number(baseRate) * multiplier));
+    let rate = BigInt(Math.floor(Number(baseRate) * multiplier));
+    if (player.hasTech(TechId.Banking)) {
+      rate = scalePct(rate, TECH_EFFECTS.bankingGoldPct);
+    }
+    if (player.hasTech(TechId.GlobalMarkets)) {
+      rate = scalePct(rate, TECH_EFFECTS.globalMarketsGoldPct);
+    }
+    return rate;
   }
 
-  nukeSpeed(unitType: UnitType): number {
+  /** Tiles per tick; Missile Propulsion speeds up the owner's nukes. */
+  nukeSpeed(unitType: UnitType, owner?: PlayerLike): number {
+    const base = this.baseNukeSpeed(unitType);
+    return owner?.hasTech(TechId.MissilePropulsion)
+      ? Math.round(
+          (base * (100 + TECH_EFFECTS.missilePropulsionSpeedPct)) / 100,
+        )
+      : base;
+  }
+
+  private baseNukeSpeed(unitType: UnitType): number {
     switch (unitType) {
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
@@ -701,8 +743,13 @@ export class EngineConfig extends Config {
     return 14;
   }
 
-  defaultNukeTargetableRange(): number {
-    return 150;
+  /** Range around launch and target where SAMs can hit a nuke. */
+  defaultNukeTargetableRange(owner?: PlayerLike): number {
+    return owner?.hasTech(TechId.StealthWarheads)
+      ? Math.floor(
+          (150 * (100 - TECH_EFFECTS.stealthWarheadsTargetablePct)) / 100,
+        )
+      : 150;
   }
 
   defaultSamRange(): number {
@@ -714,6 +761,13 @@ export class EngineConfig extends Config {
   }
 
   dynamicSamRange(sam: Unit, currentTick: number): number {
+    const range = this.baseDynamicSamRange(sam, currentTick);
+    return sam.owner().hasTech(TechId.MissileDefense)
+      ? (range * (100 + TECH_EFFECTS.missileDefenseRangePct)) / 100
+      : range;
+  }
+
+  private baseDynamicSamRange(sam: Unit, currentTick: number): number {
     const state = sam.samLauncherState();
     if (state === undefined || state.upgradeStartTick === undefined) {
       return this.samRange(sam.level());
@@ -827,4 +881,45 @@ export class EngineConfig extends Config {
   defensePostTargettingRange(): number {
     return 75;
   }
+}
+
+/** Advanced warfare: Trade Networks raises trade-ship and train income. */
+function tradeNetworksBonus(gold: Gold, player: PlayerLike): Gold {
+  return player.hasTech(TechId.TradeNetworks)
+    ? scalePct(gold, TECH_EFFECTS.tradeNetworksGoldPct)
+    : gold;
+}
+
+/** Advanced warfare cost discounts: which tech discounts a unit type, by how much. */
+function techDiscountFor(type: UnitType): [TechId, number] | null {
+  switch (type) {
+    case UnitType.City:
+    case UnitType.Factory:
+    case UnitType.Port:
+      return [
+        TechId.Industrialization,
+        TECH_EFFECTS.industrializationDiscountPct,
+      ];
+    case UnitType.Warship:
+      return [TechId.Shipbuilding, TECH_EFFECTS.shipbuildingDiscountPct];
+    case UnitType.AtomBomb:
+    case UnitType.HydrogenBomb:
+    case UnitType.MIRV:
+      return [TechId.MassProduction, TECH_EFFECTS.massProductionDiscountPct];
+    default:
+      return null;
+  }
+}
+
+function withTechDiscount(
+  type: UnitType,
+  cost: EngineUnitInfo["cost"],
+): EngineUnitInfo["cost"] {
+  const discount = techDiscountFor(type);
+  if (discount === null) return cost;
+  const [tech, pct] = discount;
+  return (game, player, extraUnits) => {
+    const c = cost(game, player, extraUnits);
+    return player.hasTech(tech) ? scalePct(c, -pct) : c;
+  };
 }
