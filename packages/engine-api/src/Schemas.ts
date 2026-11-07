@@ -16,6 +16,7 @@ import {
   Trios,
   UnitType,
 } from "./game/GameTypes";
+import { TechId } from "./game/Tech";
 import { PlayerStatsSchema } from "./StatsSchemas";
 
 export type GameID = string;
@@ -46,7 +47,8 @@ export type Intent =
   | KickPlayerIntent
   | TogglePauseIntent
   | UpdateGameConfigIntent
-  | ToggleGameStartTimer;
+  | ToggleGameStartTimer
+  | ResearchIntent;
 
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type CancelAttackIntent = z.infer<typeof CancelAttackIntentSchema>;
@@ -75,6 +77,7 @@ export type AllianceExtensionIntent = z.infer<
   typeof AllianceExtensionIntentSchema
 >;
 export type DeleteUnitIntent = z.infer<typeof DeleteUnitIntentSchema>;
+export type ResearchIntent = z.infer<typeof ResearchIntentSchema>;
 export type KickPlayerIntent = z.infer<typeof KickPlayerIntentSchema>;
 export type TogglePauseIntent = z.infer<typeof TogglePauseIntentSchema>;
 export type UpdateGameConfigIntent = z.infer<
@@ -328,6 +331,9 @@ export const GameConfigSchema = z.object({
   startDelay: zb.uint({ max: 600 }).nullable().optional(), // In seconds
   spawnImmunityDuration: zb.uint().nullable().optional(), // In ticks
   disabledUnits: z.enum(UnitType).array().optional(),
+  // "Advanced warfare": the tech tree (research with gold) and the extra
+  // nukes it unlocks (tactical nuke, EMP bomb, dirty bomb). Off by default.
+  advancedWarfare: z.boolean().optional(),
   playerTeams: TeamCountConfigSchema.optional(),
   goldMultiplier: zb.float({ min: 0.1, max: 1000 }).nullable().optional(),
   startingGold: zb.uint({ max: 1000000000 }).nullable().optional(),
@@ -505,6 +511,12 @@ export const UpgradeStructureIntentSchema = z.object({
   amount: zb.uint({ min: 1, max: MAX_UPGRADE_AMOUNT }).optional(),
 });
 
+// Advanced warfare: start researching a tech (see game/Tech.ts).
+export const ResearchIntentSchema = z.object({
+  type: z.literal("research"),
+  tech: z.enum(TechId),
+});
+
 export const CancelAttackIntentSchema = z.object({
   type: z.literal("cancel_attack"),
   attackID: z.string(),
@@ -593,6 +605,7 @@ export const IntentSchema = z.discriminatedUnion("type", [
   TogglePauseIntentSchema,
   UpdateGameConfigIntentSchema,
   ToggleGameStartTimerIntentSchema,
+  ResearchIntentSchema,
 ]);
 
 // StampedIntent = Intent with server-stamped clientID (used in turns and execution)

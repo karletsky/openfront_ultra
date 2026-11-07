@@ -21,6 +21,7 @@ import {
   PlayerUpdate,
 } from "@openfront/engine-api/game/GameUpdates";
 import { PlayerLike } from "@openfront/engine-api/game/ReadViews";
+import type { TechId } from "@openfront/engine-api/game/Tech";
 import { ClientID } from "@openfront/engine-api/Schemas";
 import { PatternDecoder } from "@openfront/shared/PatternDecoder";
 import { createRandomName } from "@openfront/shared/SharedUtil";
@@ -617,6 +618,23 @@ export class PlayerView implements PlayerLike {
   }
   isDisconnected(): boolean {
     return this.state.isDisconnected;
+  }
+
+  hasTech(tech: TechId): boolean {
+    return this.state.techs?.includes(tech) ?? false;
+  }
+
+  techs(): readonly TechId[] {
+    return (this.state.techs ?? []) as TechId[];
+  }
+
+  activeResearch(): {
+    tech: TechId;
+    startTick: Tick;
+    endTick: Tick;
+  } | null {
+    const r = this.state.research ?? null;
+    return r === null ? null : { ...r, tech: r.tech as TechId };
   }
 
   lastDeleteUnitTick(): Tick {

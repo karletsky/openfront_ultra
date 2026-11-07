@@ -17,6 +17,7 @@ import {
   UnitType,
   WarshipState,
 } from "./GameTypes";
+import type { TechId } from "./Tech";
 
 export interface GameUpdateViewData {
   tick: number;
@@ -288,6 +289,10 @@ export interface PlayerUpdate {
   betrayals?: number;
   lastDeleteUnitTick?: Tick;
   isLobbyCreator?: boolean;
+  /** Advanced warfare: researched techs, in tech-tree order. */
+  techs?: TechId[];
+  /** Advanced warfare: the research in progress, or null. */
+  research?: { tech: TechId; startTick: Tick; endTick: Tick } | null;
 }
 
 export interface AllianceView {

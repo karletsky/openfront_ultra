@@ -38,6 +38,10 @@ export function applyStateUpdate(target: PlayerState, pu: PlayerUpdate): void {
   if (pu.lastDeleteUnitTick !== undefined) {
     target.lastDeleteUnitTick = pu.lastDeleteUnitTick;
   }
+  if (pu.techs !== undefined) target.techs = pu.techs.slice();
+  if (pu.research !== undefined) {
+    target.research = pu.research ? { ...pu.research } : null;
+  }
   // Slice() to detach from the wire object — accumulated state mustn't share
   // mutable arrays with per-tick update payloads.
   if (pu.allies !== undefined) target.allies = pu.allies.slice();

@@ -1,12 +1,18 @@
 import {
   Difficulty,
   GameType,
+  Gold,
   PlayerType,
   Tick,
   UnitInfo,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { PlayerLike } from "@openfront/engine-api/game/ReadViews";
+import {
+  techCost,
+  TechId,
+  techResearchTicks,
+} from "@openfront/engine-api/game/Tech";
 import { GameConfig } from "@openfront/engine-api/Schemas";
 import { pow } from "../DetMath";
 import { DoomsdayClockSpeed } from "../game/DoomsdayClock";
@@ -174,6 +180,26 @@ export class Config {
 
   defensePostRange(): number {
     return 30;
+  }
+
+  /** Advanced warfare: tech tree + extra nukes (GameConfig.advancedWarfare). */
+  advancedWarfare(): boolean {
+    return this._gameConfig.advancedWarfare ?? false;
+  }
+
+  /** Gold to research `tech`; free for players with infinite gold. */
+  techCost(player: PlayerLike, tech: TechId): Gold {
+    const infiniteGold =
+      this._gameConfig.infiniteGold ||
+      ((this._gameConfig.hostCheats?.infiniteGold ?? false) &&
+        player.isLobbyCreator());
+    if (player.type() === PlayerType.Human && infiniteGold) return 0n;
+    return techCost(tech);
+  }
+
+  /** Ticks to research `tech` (one second under instant build). */
+  techResearchTicks(tech: TechId): Tick {
+    return this.instantBuild() ? 10 : techResearchTicks(tech);
   }
 
   isUnitDisabled(unitType: UnitType): boolean {
