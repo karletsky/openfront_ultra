@@ -376,7 +376,8 @@ describe("Impassable Terrain", () => {
     expect(out[0]).toBe(60);
     expect(out[1]).toBe(60);
     expect(out[2]).toBe(60);
-    expect(out[3]).toBe(255);
+    // Alpha carries the raw terrain byte for the terrain shader.
+    expect(out[3]).toBe(0x9f);
   });
 
   test("encodeTerrainTile uses the backgroundColor override for impassable tiles", () => {
@@ -385,7 +386,7 @@ describe("Impassable Terrain", () => {
     expect(out[0]).toBe(10);
     expect(out[1]).toBe(20);
     expect(out[2]).toBe(30);
-    expect(out[3]).toBe(255);
+    expect(out[3]).toBe(0x9f);
   });
 
   test("encodeTerrainTile renders plains normally (not background)", () => {

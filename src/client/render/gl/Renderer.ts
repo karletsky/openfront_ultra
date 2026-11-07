@@ -283,6 +283,7 @@ export class GPURenderer {
         mountainColor:
           hexToRgb(this.settings.terrain.mountainColor) ?? undefined,
       },
+      this.settings.terrain,
     );
 
     // --- Terrain bytes R8UI texture (shared by map-layer passes) ---

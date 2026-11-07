@@ -109,6 +109,9 @@ export const GraphicsOverridesSchema = z
         plainsColor: z.string(),
         highlandColor: z.string(),
         mountainColor: z.string(),
+        // Enhanced terrain shading: hillshade relief, animated water and
+        // shoreline foam. Disable for the flat classic look.
+        enhanced: z.boolean(),
       })
       .partial(),
     lighting: z

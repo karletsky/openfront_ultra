@@ -22,7 +22,11 @@
     "sandColor": "#CCCB9E",
     "plainsColor": "#BEDC8A",
     "highlandColor": "#DCCB9E",
-    "mountainColor": "#e6e6e6"
+    "mountainColor": "#e6e6e6",
+    "enhanced": true,
+    "reliefStrength": 0.6,
+    "waterStrength": 1,
+    "foamStrength": 0.6
   },
   "falloutBloom": {
     "broilSpeedCold": 0.0018,

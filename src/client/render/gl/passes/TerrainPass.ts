@@ -5,10 +5,16 @@
  * applyTerrainRects() so water-nuke conversions (land → water) are reflected
  * live. Vertex shader transforms the map quad by the camera mat3; fragment
  * shader samples the RGBA8 terrain texture with nearest-neighbour filtering
- * so each terrain cell stays pixel-crisp at every zoom level.
+ * so each terrain cell's color stays pixel-crisp at every zoom level.
+ *
+ * With `terrain.enhanced` on, the fragment shader also decodes the raw
+ * terrain byte (stored in the texture's alpha) to add smooth hillshade
+ * relief on land, depth shading + an animated shimmer on water, and pulsing
+ * foam on shoreline water. Settings are read live each frame.
  */
 
 import type { TerrainRect } from "../../types";
+import type { RenderSettings } from "../RenderSettings";
 import terrainFragSrc from "../shaders/terrain/terrain.frag.glsl?raw";
 import terrainVertSrc from "../shaders/terrain/terrain.vert.glsl?raw";
 import {
@@ -32,6 +38,11 @@ export class TerrainPass {
   private tex: WebGLTexture;
   private vao: WebGLVertexArrayObject;
   private uCamera: WebGLUniformLocation;
+  private uTime: WebGLUniformLocation | null;
+  private uEnhanced: WebGLUniformLocation | null;
+  private uRelief: WebGLUniformLocation | null;
+  private uWater: WebGLUniformLocation | null;
+  private uFoam: WebGLUniformLocation | null;
   private mapW: number;
   private mapH: number;
   // Base ocean (deep water) color; reused by applyTerrainRects and rebuilds.
@@ -51,6 +62,12 @@ export class TerrainPass {
     mapW: number,
     mapH: number,
     terrainColors?: TerrainColorOverrides,
+    // Live slice of the render settings (mutated in place on a graphics
+    // override change); only the enhanced-shading knobs are read here.
+    private shading?: Pick<
+      RenderSettings["terrain"],
+      "enhanced" | "reliefStrength" | "waterStrength" | "foamStrength"
+    >,
   ) {
     this.mapW = mapW;
     this.mapH = mapH;
@@ -58,10 +75,15 @@ export class TerrainPass {
     this.program = createProgram(
       gl,
       shaderSrc(terrainVertSrc, { MAP_W: mapW, MAP_H: mapH }),
-      terrainFragSrc,
+      shaderSrc(terrainFragSrc, { MAP_W: mapW, MAP_H: mapH }),
       "TerrainPass",
     );
     this.uCamera = gl.getUniformLocation(this.program, "uCamera")!;
+    this.uTime = gl.getUniformLocation(this.program, "uTime");
+    this.uEnhanced = gl.getUniformLocation(this.program, "uEnhanced");
+    this.uRelief = gl.getUniformLocation(this.program, "uRelief");
+    this.uWater = gl.getUniformLocation(this.program, "uWater");
+    this.uFoam = gl.getUniformLocation(this.program, "uFoam");
 
     this.tex = createTexture2D(gl, {
       width: mapW,
@@ -151,6 +173,16 @@ export class TerrainPass {
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.uniformMatrix3fv(this.uCamera, false, cameraMatrix);
+    const shading = this.shading;
+    const enhanced = shading?.enhanced ?? false;
+    gl.uniform1f(this.uEnhanced, enhanced ? 1 : 0);
+    if (enhanced && shading) {
+      // Wrap hourly to keep float precision for the animation phase.
+      gl.uniform1f(this.uTime, (performance.now() / 1000) % 3600);
+      gl.uniform1f(this.uRelief, shading.reliefStrength);
+      gl.uniform1f(this.uWater, shading.waterStrength);
+      gl.uniform1f(this.uFoam, shading.foamStrength);
+    }
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.tex);

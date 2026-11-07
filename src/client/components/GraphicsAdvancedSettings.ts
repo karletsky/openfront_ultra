@@ -737,6 +737,17 @@ export class GraphicsAdvancedSettings extends LitElement {
 
   // ---- Terrain colors ----
 
+  private currentEnhancedTerrain(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().terrain?.enhanced ??
+      renderDefaults.terrain.enhanced
+    );
+  }
+
+  private onToggleEnhancedTerrain() {
+    this.patchTerrain({ enhanced: !this.currentEnhancedTerrain() });
+  }
+
   private currentBackgroundColor(): string {
     return (
       this.userSettings.graphicsOverrides().terrain?.backgroundColor ??
@@ -1330,6 +1341,14 @@ export class GraphicsAdvancedSettings extends LitElement {
 
       <!-- ⛰️ Terrain -->
       ${GraphicsAdvancedSettings.section("graphics_setting.section_terrain")}
+      <setting-toggle
+        label=${translateText("graphics_setting.enhanced_terrain_label")}
+        description=${translateText("graphics_setting.enhanced_terrain_desc")}
+        id="enhanced-terrain-toggle"
+        .checked=${this.currentEnhancedTerrain()}
+        @change=${this.onToggleEnhancedTerrain}
+      ></setting-toggle>
+
       <setting-color
         label=${translateText("graphics_setting.background_color_label")}
         description=${translateText("graphics_setting.background_color_desc")}

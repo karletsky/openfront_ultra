@@ -79,6 +79,18 @@ export interface RenderSettings {
     plainsColor: string;
     highlandColor: string;
     mountainColor: string;
+    /**
+     * Enhanced terrain shading: smooth hillshade relief on land, depth
+     * shading and animated shimmer on water, and pulsing shoreline foam.
+     * false = the flat baked colors.
+     */
+    enhanced: boolean;
+    /** Hillshade strength on land (0 = flat). */
+    reliefStrength: number;
+    /** Water depth shading + shimmer strength (0 = flat). */
+    waterStrength: number;
+    /** Shoreline foam strength (0 = none). */
+    foamStrength: number;
   };
   falloutBloom: {
     broilSpeedCold: number;
