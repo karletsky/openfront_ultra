@@ -1403,11 +1403,14 @@ export class GPURenderer {
     return this.glowPass.enabled() && !this.altView;
   }
 
-  /** The light-emitting effects, again, for the glow layer. */
-  private drawEmissive(cam: Float32Array, zoom: number): void {
+  /**
+   * The light-emitting effects, again, for the glow layer. `nukes` is false
+   * for the 3D view's map image: there the missiles glow in the air instead.
+   */
+  private drawEmissive(cam: Float32Array, zoom: number, nukes = true): void {
     const pe = this.settings.passEnabled;
     if (pe.fx) this.fxPass.drawEmissive(cam);
-    if (pe.unit) this.nukeFlightPass.draw(cam, zoom);
+    if (pe.unit && nukes) this.nukeFlightPass.draw(cam, zoom);
   }
 
   /**
@@ -1463,7 +1466,7 @@ export class GPURenderer {
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      this.drawEmissive(this.imgCam, ortho.zoom);
+      this.drawEmissive(this.imgCam, ortho.zoom, false);
       this.rawBindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, cw, ch);
     }
@@ -1498,6 +1501,9 @@ export class GPURenderer {
         this.imgCam,
         this.emissiveImage.tex,
       );
+      if (this.settings.passEnabled.unit) {
+        this.nukeFlightPass.draw(this.bbCam, this.camera.zoom, "missile");
+      }
       this.glowPass.composite();
     }
   }
@@ -1611,7 +1617,9 @@ export class GPURenderer {
     if (pe.unit) {
       this.unitPass.setHideNukes(this.nukeFlightPass.isActive());
       if (bb) this.unitPass.drawMissiles(cam);
-      this.nukeFlightPass.draw(cam, zoom);
+      // 3D view: only the ground shadow is part of the map image; the
+      // missile flies above the terrain (renderBillboards).
+      this.nukeFlightPass.draw(cam, zoom, bb ? "all" : "shadow");
     }
 
     if (pe.fx) {
@@ -1653,6 +1661,7 @@ export class GPURenderer {
     if (pe.structure) this.structureLevelPass.draw(cam, zoom);
     if (pe.bar) this.barPass.draw(cam);
     if (pe.unit) this.unitPass.drawMissiles(cam);
+    if (pe.unit) this.nukeFlightPass.draw(cam, zoom, "missile");
     this.drawNamesAndText(cam, zoom);
     gl.disable(gl.BLEND);
   }

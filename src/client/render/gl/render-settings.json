@@ -236,7 +236,8 @@
     "nukeMinLengthPx": 30,
     "nukeShadowHeight": 0.5,
     "nukeGlowStrength": 0.7,
-    "nukePlumeLength": 1.1
+    "nukePlumeLength": 1.1,
+    "nukeArcHeight": 45
   },
   "name": {
     "lerpSpeed": 10,

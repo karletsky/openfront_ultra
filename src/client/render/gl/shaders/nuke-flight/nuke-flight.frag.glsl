@@ -19,6 +19,7 @@ flat in float vUntargetable;
 flat in float vProgress;
 flat in float vSeed;
 flat in float vPxPerUnit;
+flat in float vMode; // 0 all, 1 shadow only, 2 missile only
 
 out vec4 fragColor;
 
@@ -115,11 +116,18 @@ void main() {
   vec4 col = vec4(0.0);
 
   // --- Ground shadow ---------------------------------------------------
-  {
+  if (vMode < 1.5) {
     vec2 q = p - vShadow;
     float e = (q.x * q.x) / (HALF * HALF * 1.1) + (q.y * q.y) / (r * r * 3.0);
     float s = exp(-e * 2.2) * 0.32;
     col = over(vec4(0.0, 0.0, 0.0, s), col);
+  }
+
+  if (vMode > 0.5 && vMode < 1.5) {
+    // Shadow-only (3D view, draped on the map).
+    if (col.a < 0.003) discard;
+    fragColor = vec4(col.rgb, col.a);
+    return;
   }
 
   // --- Heat glow -------------------------------------------------------

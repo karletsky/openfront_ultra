@@ -319,6 +319,7 @@ export interface RenderSettings {
     nukeShadowHeight: number; // ground-shadow drift at mid-flight, in missile lengths
     nukeGlowStrength: number; // heat glow opacity (0..1)
     nukePlumeLength: number; // exhaust plume length, in missile lengths
+    nukeArcHeight: number; // 3D view: peak flight altitude, in tiles
   };
   name: {
     lerpSpeed: number;

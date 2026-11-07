@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+#pragma billboard3d
 
 layout(location = 0) in vec2 aCorner; // quad corner, [-1,1]²
 
@@ -12,6 +13,11 @@ uniform float uZoom; // screen pixels per tile for this camera
 uniform float uMinLengthPx; // missiles never shrink below this on screen
 uniform float uSizeScale;
 uniform float uShadowHeight; // ground-shadow offset at mid-flight, in missile lengths
+// 0: everything (2D view). 1: ground shadow only, straight below the missile
+// (3D view, draped with the map). 2: missile only, lifted into the air along
+// its arc (3D view, drawn upright over the terrain).
+uniform int uMode;
+uniform float uArcHeight; // peak altitude in the 3D view, tiles
 
 out vec2 vLocal; // fragment position in the missile frame, in missile lengths
 flat out vec2 vShadow; // shadow offset in the missile frame, in missile lengths
@@ -21,6 +27,7 @@ flat out float vUntargetable;
 flat out float vProgress;
 flat out float vSeed;
 flat out float vPxPerUnit; // screen pixels per missile length (for anti-aliasing)
+flat out float vMode;
 
 // Missile length in tiles per kind: atom, hydrogen, MIRV, MIRV warhead,
 // tactical, EMP, dirty.
@@ -53,16 +60,20 @@ void main() {
   vec2 perp = vec2(-dir.y, dir.x);
 
   // Ground shadow: the missile climbs then falls (sin arc); its shadow is
-  // cast down-right, so it drifts away from the missile mid-flight.
+  // cast down-right, so it drifts away from the missile mid-flight. In the
+  // 3D view the shadow lies straight below and the missile is lifted.
   float alt = sin(3.14159265 * clamp(vProgress, 0.0, 1.0));
-  vec2 shadowWorld = vec2(0.55, 0.85) * alt * uShadowHeight; // missile lengths
+  vec2 shadowWorld = uMode == 0
+    ? vec2(0.55, 0.85) * alt * uShadowHeight
+    : vec2(0.0);
   vShadow = vec2(dot(shadowWorld, dir), dot(shadowWorld, perp));
+  vMode = float(uMode);
 
   // Quad big enough for plume (behind), glow and shadow: 2.4 lengths across.
   float extent = 1.2 + uShadowHeight;
   vLocal = aCorner * extent;
   vec2 center = aPosDir.xy + 0.5;
   vec2 world = center + (dir * vLocal.x + perp * vLocal.y) * len;
-  vec3 clip = uCamera * vec3(world, 1.0);
-  gl_Position = vec4(clip.xy, 0.0, 1.0);
+  float lift = uMode == 2 ? alt * uArcHeight : 0.0;
+  gl_Position = bbProjectLift(uCamera, center, world, lift);
 }

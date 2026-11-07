@@ -70,6 +70,8 @@ export class NukeFlightPass {
       "uUntargetableAlpha",
       "uGlowStrength",
       "uPlumeLength",
+      "uMode",
+      "uArcHeight",
     ]) {
       this.u[name] = gl.getUniformLocation(this.program, name);
     }
@@ -113,7 +115,16 @@ export class NukeFlightPass {
     this.lastUpdateMs = performance.now();
   }
 
-  draw(cameraMatrix: Float32Array, zoom: number): void {
+  /**
+   * mode: "all" in the 2D view; in the 3D view "shadow" (draped with the
+   * map) and "missile" (drawn upright after the terrain, lifted along its
+   * arc through the billboard projection).
+   */
+  draw(
+    cameraMatrix: Float32Array,
+    zoom: number,
+    mode: "all" | "shadow" | "missile" = "all",
+  ): void {
     if (!this.isActive() || this.flights.length === 0) return;
     const gl = this.gl;
     const n = this.flights.length;
@@ -152,6 +163,8 @@ export class NukeFlightPass {
     gl.uniform1f(u.uUntargetableAlpha, us.untargetableAlpha);
     gl.uniform1f(u.uGlowStrength, us.nukeGlowStrength);
     gl.uniform1f(u.uPlumeLength, us.nukePlumeLength);
+    gl.uniform1i(u.uMode, mode === "all" ? 0 : mode === "shadow" ? 1 : 2);
+    gl.uniform1f(u.uArcHeight, us.nukeArcHeight);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.paletteTex);
     gl.uniform1i(u.uPalette, 0);
