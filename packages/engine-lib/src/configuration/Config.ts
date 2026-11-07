@@ -3,6 +3,7 @@ import {
   GameType,
   Gold,
   PlayerType,
+  requiredTechFor,
   Tick,
   UnitInfo,
   UnitType,
@@ -210,6 +211,10 @@ export class Config {
   }
 
   isUnitDisabled(unitType: UnitType): boolean {
+    // Tech-gated units only exist in advanced warfare games.
+    if (requiredTechFor(unitType) !== null && !this.advancedWarfare()) {
+      return true;
+    }
     return this._gameConfig.disabledUnits?.includes(unitType) ?? false;
   }
   instantBuild(): boolean {
@@ -286,6 +291,9 @@ export class Config {
       case UnitType.HydrogenBomb:
       case UnitType.MIRV:
       case UnitType.MIRVWarhead:
+      case UnitType.TacticalNuke:
+      case UnitType.EMPBomb:
+      case UnitType.DirtyBomb:
       case UnitType.TradeShip:
       case UnitType.Train:
         info = {};
@@ -483,6 +491,16 @@ export class Config {
         return { inner: 12, outer: 30 };
       case UnitType.HydrogenBomb:
         return { inner: 80, outer: 100 };
+      // Small and precise.
+      case UnitType.TacticalNuke:
+        return { inner: 6, outer: 14 };
+      // Destroys nothing: `outer` is the radius in which structures are
+      // disabled (see NukeExecution).
+      case UnitType.EMPBomb:
+        return { inner: 0, outer: 70 };
+      // A small blast; the damage is the lingering radiation zone.
+      case UnitType.DirtyBomb:
+        return { inner: 6, outer: 12 };
     }
     throw new Error(`Unknown nuke type: ${unitType}`);
   }

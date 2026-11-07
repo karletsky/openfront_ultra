@@ -27,6 +27,7 @@ import { PauseExecutionSnapshot } from "../execution/PauseExecution";
 import { PlayerExecutionSnapshot } from "../execution/PlayerExecution";
 import { PortExecutionSnapshot } from "../execution/PortExecution";
 import { QuickChatExecutionSnapshot } from "../execution/QuickChatExecution";
+import { RadiationExecutionSnapshot } from "../execution/RadiationExecution";
 import { RecomputeRailClusterExecutionSnapshot } from "../execution/RecomputeRailClusterExecution";
 import { ResearchExecutionSnapshot } from "../execution/ResearchExecution";
 import { RetreatExecutionSnapshot } from "../execution/RetreatExecution";
@@ -97,6 +98,7 @@ export const EXECUTION_SNAPSHOT_TYPES = [
   TribeExecutionSnapshot,
   UpgradeStructureExecutionSnapshot,
   ResearchExecutionSnapshot,
+  RadiationExecutionSnapshot,
   WarshipExecutionSnapshot,
   WinCheckExecutionSnapshot,
 ] as unknown as readonly ExecutionSnapshotType<unknown>[];

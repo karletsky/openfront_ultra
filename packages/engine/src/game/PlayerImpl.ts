@@ -18,6 +18,7 @@ import {
   PlayerProfile,
   PlayerType,
   Relation,
+  requiredTechFor,
   Structures,
   Team,
   TerraNullius,
@@ -1524,6 +1525,10 @@ export class PlayerImpl implements Player {
     if (this.mg.config().isUnitDisabled(unitType)) {
       return false;
     }
+    const tech = requiredTechFor(unitType);
+    if (tech !== null && !this.hasTech(tech)) {
+      return false;
+    }
     const cost = knownCost ?? this.mg.unitInfo(unitType).cost(this.mg, this);
     if (this._gold < cost) {
       return false;
@@ -1670,6 +1675,9 @@ export class PlayerImpl implements Player {
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
+      case UnitType.TacticalNuke:
+      case UnitType.EMPBomb:
+      case UnitType.DirtyBomb:
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.MIRVWarhead:
         return targetTile;
@@ -1740,7 +1748,10 @@ export class PlayerImpl implements Player {
     // only get missilesilos that are not on cooldown and not under construction
     const readySilos = this.units(UnitType.MissileSilo).filter(
       (silo) =>
-        silo.isActive() && !silo.isInCooldown() && !silo.isUnderConstruction(),
+        silo.isActive() &&
+        !silo.isInCooldown() &&
+        !silo.isUnderConstruction() &&
+        !silo.isDisabled(),
     );
     readySilos.sort(
       (a, b) =>

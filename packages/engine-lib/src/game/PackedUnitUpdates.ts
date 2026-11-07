@@ -4,7 +4,7 @@ import {
   UnitUpdate,
 } from "@openfront/engine-api/game/GameUpdates";
 
-export const UNIT_UPDATE_STRIDE = 21;
+export const UNIT_UPDATE_STRIDE = 22;
 
 export const OFFSET_ID = 0;
 export const OFFSET_POS = 1;
@@ -27,6 +27,7 @@ export const OFFSET_NUKE_WAIT_TICKS = 17;
 export const OFFSET_PACKED_A = 18;
 export const OFFSET_PACKED_B = 19;
 export const OFFSET_LEVEL = 20;
+export const OFFSET_DISABLED_UNTIL = 21;
 
 // unitType mapping
 export const PACKED_UNIT_TYPES: readonly UnitType[] = [
@@ -46,6 +47,9 @@ export const PACKED_UNIT_TYPES: readonly UnitType[] = [
   UnitType.MIRVWarhead, // 14
   UnitType.Train, // 15
   UnitType.Factory, // 16
+  UnitType.TacticalNuke, // 17
+  UnitType.EMPBomb, // 18
+  UnitType.DirtyBomb, // 19
 ] as const;
 
 const UNIT_TYPE_TO_INT = new Map<UnitType, number>(
@@ -257,6 +261,9 @@ export class PackedUnitUpdateDecoder {
   get level(): number {
     return this.buffer[this.offset + OFFSET_LEVEL];
   }
+  get disabledUntil(): number {
+    return this.buffer[this.offset + OFFSET_DISABLED_UNTIL];
+  }
   get isActive(): boolean {
     return unpackBIsActive(this.buffer[this.offset + OFFSET_PACKED_B]);
   }
@@ -409,6 +416,8 @@ export class PackedUnitUpdateDecoder {
       health: this.health,
       underConstruction: this.underConstruction,
       level: this.level,
+      // -1 = never disabled; left out so plain units round-trip unchanged.
+      disabledUntil: this.disabledUntil >= 0 ? this.disabledUntil : undefined,
       hasTrainStation: this.hasTrainStation,
       trainType: this.trainType,
       loaded: this.loaded,
@@ -494,6 +503,8 @@ export function packUnitUpdates(units: UnitUpdate[]): {
     );
     packedUnitUpdates[offset + OFFSET_PACKED_B] = packB(update);
     packedUnitUpdates[offset + OFFSET_LEVEL] = update.level;
+    packedUnitUpdates[offset + OFFSET_DISABLED_UNTIL] =
+      update.disabledUntil ?? -1;
 
     if (update.missileTimerQueue && update.missileTimerQueue.length > 0) {
       packedMissileTimers[timerOffset++] = update.id;

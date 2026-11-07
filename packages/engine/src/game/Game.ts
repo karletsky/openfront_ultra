@@ -86,6 +86,21 @@ export interface UnitParamsMap {
     trajectory: TileRef[];
   };
 
+  [UnitType.TacticalNuke]: {
+    targetTile?: number;
+    trajectory: TileRef[];
+  };
+
+  [UnitType.EMPBomb]: {
+    targetTile?: number;
+    trajectory: TileRef[];
+  };
+
+  [UnitType.DirtyBomb]: {
+    targetTile?: number;
+    trajectory: TileRef[];
+  };
+
   [UnitType.MIRV]: {
     targetTile?: number;
     targetPlayer?: Player | TerraNullius;
@@ -282,6 +297,10 @@ export interface Unit extends UnitLike {
   launch(): void;
   reloadMissile(): void;
   isInCooldown(): boolean;
+  /** Advanced warfare: disabled by an EMP (SAMs/silos/posts stop working). */
+  isDisabled(): boolean;
+  disabledUntil(): Tick;
+  disableUntil(tick: Tick): void;
   missileTimerQueue(): number[];
   samLauncherState(): SamLauncherState | undefined;
 

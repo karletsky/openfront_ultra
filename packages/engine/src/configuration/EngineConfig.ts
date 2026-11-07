@@ -381,6 +381,12 @@ export class EngineConfig extends Config {
         return this.costWrapper(() => 750_000, UnitType.AtomBomb);
       case UnitType.HydrogenBomb:
         return this.costWrapper(() => 5_000_000, UnitType.HydrogenBomb);
+      case UnitType.TacticalNuke:
+        return this.costWrapper(() => 300_000, UnitType.TacticalNuke);
+      case UnitType.EMPBomb:
+        return this.costWrapper(() => 2_000_000, UnitType.EMPBomb);
+      case UnitType.DirtyBomb:
+        return this.costWrapper(() => 1_500_000, UnitType.DirtyBomb);
       case UnitType.MIRV:
         return (game: Game, player: Player) => {
           if (
@@ -730,7 +736,11 @@ export class EngineConfig extends Config {
     switch (unitType) {
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
+      case UnitType.EMPBomb:
+      case UnitType.DirtyBomb:
         return 10;
+      case UnitType.TacticalNuke:
+        return 14;
       case UnitType.MIRV:
         return 15;
       case UnitType.MIRVWarhead:
@@ -788,7 +798,7 @@ export class EngineConfig extends Config {
 
   // Humans can be soldiers, soldiers attacking, soldiers in boat etc.
   nukeDeathFactor(
-    nukeType: NukeType,
+    nukeType: UnitType,
     humans: number,
     tilesOwned: number,
     maxTroops: number,
@@ -803,6 +813,21 @@ export class EngineConfig extends Config {
     const steepness = 2;
     const normalizedExcess = excessTroops / maxTroops;
     return scalingFactor * (1 - exp(-steepness * normalizedExcess));
+  }
+
+  /** Advanced warfare: how long an EMP disables structures, in ticks. */
+  empDisableTicks(): Tick {
+    return 30 * 10;
+  }
+
+  /** Advanced warfare: radius of a dirty bomb's radiation zone, in tiles. */
+  dirtyBombZoneRadius(): number {
+    return 28;
+  }
+
+  /** Advanced warfare: how long a dirty bomb's radiation zone lasts. */
+  dirtyBombZoneTicks(): Tick {
+    return 45 * 10;
   }
 
   shellLifetime(): number {
@@ -905,6 +930,9 @@ function techDiscountFor(type: UnitType): [TechId, number] | null {
     case UnitType.AtomBomb:
     case UnitType.HydrogenBomb:
     case UnitType.MIRV:
+    case UnitType.TacticalNuke:
+    case UnitType.EMPBomb:
+    case UnitType.DirtyBomb:
       return [TechId.MassProduction, TECH_EFFECTS.massProductionDiscountPct];
     default:
       return null;

@@ -130,6 +130,8 @@ export interface UnitState {
   samUpgradeStartRange: number | null;
   samUpgradeTargetLevel: number | null;
   samUpgradeDuration: number | null;
+  /** Advanced warfare: EMP-disabled until this tick (-1 = never). */
+  disabledUntil?: number;
 }
 
 /** Minimal dead-unit data needed by the FX pass. */

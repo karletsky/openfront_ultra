@@ -62,6 +62,8 @@ export class UnitImpl implements Unit {
   private _trainType: TrainType | undefined;
   // Nuke only
   private _deletionAt: number | null = null;
+  // Advanced warfare: an EMP disables this structure until this tick.
+  private _disabledUntil: Tick = -1;
   private _samLauncherState: SamLauncherState | undefined;
 
   constructor(
@@ -201,6 +203,7 @@ export class UnitImpl implements Unit {
       hasTrainStation: this._hasTrainStation,
       trainType: this._trainType,
       loaded: this._loaded,
+      disabledUntil: this._disabledUntil,
     };
     return update;
   }
@@ -577,6 +580,20 @@ export class UnitImpl implements Unit {
     return this._missileTimerQueue[0];
   }
 
+  isDisabled(): boolean {
+    return this.mg.ticks() < this._disabledUntil;
+  }
+
+  disabledUntil(): Tick {
+    return this._disabledUntil;
+  }
+
+  disableUntil(tick: Tick): void {
+    if (tick <= this._disabledUntil) return;
+    this._disabledUntil = tick;
+    this.touch();
+  }
+
   isInCooldown(): boolean {
     return this._missileTimerQueue.length === this._level;
   }
@@ -858,6 +875,7 @@ export class UnitImpl implements Unit {
       loaded: this._loaded ?? null,
       trainType: this._trainType ?? null,
       deletionAt: this._deletionAt,
+      disabledUntil: this._disabledUntil,
       samLauncherState: this._samLauncherState
         ? {
             upgradeStartTick: this._samLauncherState.upgradeStartTick,
@@ -910,6 +928,7 @@ export class UnitImpl implements Unit {
     this._loaded = s.loaded ?? undefined;
     this._trainType = s.trainType ?? undefined;
     this._deletionAt = s.deletionAt;
+    this._disabledUntil = s.disabledUntil;
     this._samLauncherState = s.samLauncherState
       ? { ...s.samLauncherState }
       : undefined;
@@ -918,7 +937,11 @@ export class UnitImpl implements Unit {
 
 export const UnitSnapshot = snapshotType({
   name: "Unit",
-  version: 1,
+  version: 2,
+  migrations: {
+    // v1 units predate EMP bombs: never disabled.
+    1: (d) => ({ ...d, disabledUntil: -1 }),
+  },
   schema: z.object({
     id: zInt(),
     type: UnitTypeSchema,
@@ -966,6 +989,7 @@ export const UnitSnapshot = snapshotType({
     loaded: z.boolean().nullable(),
     trainType: z.enum(TrainType).nullable(),
     deletionAt: zInt().nullable(),
+    disabledUntil: zInt(),
     samLauncherState: z
       .object({
         upgradeStartTick: zInt().optional(),

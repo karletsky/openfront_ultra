@@ -222,6 +222,8 @@ export interface UnitUpdate {
   trainType?: TrainType; // Only for trains
   loaded?: boolean; // Only for trains
   samUpgrade?: SamLauncherState;
+  /** Advanced warfare: EMP-disabled until this tick (-1 = never). */
+  disabledUntil?: Tick;
 }
 
 export interface AttackUpdate {
