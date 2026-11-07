@@ -137,9 +137,11 @@ describe("Tech effects", () => {
   test("Armor Plating raises warship max health; Amphibious adds boats", () => {
     const tile = Array.from(a.tiles())[0];
     const base = g.config().unitInfo(UnitType.Warship).maxHealth!;
-    expect(a.buildUnit(UnitType.Warship, tile, {}).maxHealth()).toBe(base);
+    expect(
+      a.buildUnit(UnitType.Warship, tile, { patrolTile: tile }).maxHealth(),
+    ).toBe(base);
     grant(a, TechId.ArmorPlating);
-    const armored = a.buildUnit(UnitType.Warship, tile, {});
+    const armored = a.buildUnit(UnitType.Warship, tile, { patrolTile: tile });
     expect(armored.maxHealth()).toBe(Math.floor((base * 130) / 100));
     expect(armored.health()).toBe(armored.maxHealth());
 
