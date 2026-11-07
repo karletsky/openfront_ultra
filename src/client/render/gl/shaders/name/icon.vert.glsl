@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+#pragma billboard3d
 precision highp int;
 
 // Unit quad vertex position [0,0]→[1,1]
@@ -170,8 +171,7 @@ void main() {
   vec2 worldPos = iconOrigin + aPos * vec2(iconW, iconH);
 
   // Camera transform
-  vec3 clip = uCamera * vec3(worldPos, 1.0);
-  gl_Position = vec4(clip.xy, 0.0, 1.0);
+  gl_Position = bbProject(uCamera, vec2(wx, wy), worldPos);
 
   vIconType = iconType;
 }

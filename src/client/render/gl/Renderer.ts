@@ -90,6 +90,7 @@ import {
   type GPUResources,
 } from "./utils/GpuResources";
 import { HeatManager } from "./utils/HeatManager";
+import { applyBillboardState, type BillboardState } from "./view3d/Billboard";
 import { HeightField } from "./view3d/HeightField";
 import {
   buildView3D,
@@ -97,6 +98,15 @@ import {
   groundFootprint,
   orthoMatrix,
 } from "./view3d/Projection3D";
+
+const BILLBOARDS_OFF: BillboardState = {
+  enabled: false,
+  viewProj: new Float32Array(16),
+  heightScale: 0,
+  centerDepth: 1,
+  mapW: 1,
+  mapH: 1,
+};
 
 /** Ghost types that trigger SAM radius overlay (matches upstream SAMRadiusLayer). */
 const SAM_RADIUS_GHOST_TYPES = new Set([
@@ -137,6 +147,9 @@ export class GPURenderer {
   private mapTarget: RenderTarget;
   /** 2D camera the offscreen map image was drawn with this frame. */
   private imgCam = new Float32Array(9);
+  /** Top-down camera at the true zoom, for laying out billboards. */
+  private bbCam = new Float32Array(9);
+  private billboardsOn = false;
   /**
    * Framebuffer that `bindFramebuffer(…, null)` resolves to. Normally the
    * canvas (null); while the 3D view renders the flat map, the offscreen
@@ -1362,6 +1375,10 @@ export class GPURenderer {
       this.renderFrame3D();
       return;
     }
+    if (this.billboardsOn) {
+      this.billboardsOn = false;
+      applyBillboardState(this.gl, BILLBOARDS_OFF, null);
+    }
     this.renderFrame2D(this.camera.getMatrix(), this.camera.zoom);
   }
 
@@ -1390,7 +1407,7 @@ export class GPURenderer {
     resizeRenderTarget(gl, this.mapTarget, cw, ch);
     this.virtualDefaultFbo = this.mapTarget.fbo;
     try {
-      this.renderFrame2D(this.imgCam, ortho.zoom);
+      this.renderFrame2D(this.imgCam, ortho.zoom, false);
     } finally {
       this.virtualDefaultFbo = null;
     }
@@ -1407,9 +1424,36 @@ export class GPURenderer {
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.terrain3DPass.draw(view, this.imgCam, this.mapTarget.tex, bgf);
+
+    this.billboardsOn = true;
+    applyBillboardState(
+      gl,
+      {
+        enabled: true,
+        viewProj: view.viewProj,
+        heightScale: v3.heightScale,
+        centerDepth: view.eye[2] / Math.max(1e-6, -view.fwd[2]),
+        mapW: this.mapW,
+        mapH: this.mapH,
+      },
+      this.terrain3DPass.heightTexture(),
+    );
+    orthoMatrix(
+      this.camera.offsetX,
+      this.camera.offsetY,
+      this.camera.zoom,
+      cw,
+      ch,
+      this.bbCam,
+    );
+    this.renderBillboards(this.bbCam, this.camera.zoom);
   }
 
-  private renderFrame2D(cam: Float32Array, zoom: number): void {
+  private renderFrame2D(
+    cam: Float32Array,
+    zoom: number,
+    includeBillboards = true,
+  ): void {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
     const compositingActive = this.isLightCompositingActive();
@@ -1427,7 +1471,7 @@ export class GPURenderer {
       toScreen(this.gl, cw, ch, () => this.drawBaseLayer(cam));
     }
 
-    this.renderOverlays(cam, zoom);
+    this.renderOverlays(cam, zoom, includeBillboards);
   }
 
   private isLightCompositingActive(): boolean {
@@ -1474,9 +1518,17 @@ export class GPURenderer {
     if (pe.territory) this.territoryPass.draw(cam);
   }
 
-  private renderOverlays(cam: Float32Array, zoom: number): void {
+  private renderOverlays(
+    cam: Float32Array,
+    zoom: number,
+    includeBillboards = true,
+  ): void {
     const gl = this.gl;
     const pe = this.settings.passEnabled;
+    // In the 3D view the billboarded overlays (unit sprites, structure icons,
+    // levels, bars, names, world text) are drawn upright after the terrain
+    // mesh instead (renderBillboards), not painted into the flat map image.
+    const bb = includeBillboards;
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -1484,17 +1536,17 @@ export class GPURenderer {
     this.spawnOverlayPass.draw(cam);
     if (pe.borderStamp) this.borderStampPass.draw(cam);
     if (pe.railroad) this.railroadPass.draw(cam, zoom);
-    if (pe.unit) this.unitPass.drawGround(cam);
+    if (pe.unit && bb) this.unitPass.drawGround(cam);
     if (pe.falloutBloom) this.bloomPass.draw(cam, this.frameTick);
     this.samRadiusPass.draw(cam);
     this.rangeCirclePass.draw(cam);
     this.nukeTrajectoryPass.draw(cam);
     this.crosshairPass.draw(cam);
-    if (pe.structure) this.structurePass.draw(cam, zoom);
-    if (pe.structure) this.structureLevelPass.draw(cam, zoom);
+    if (pe.structure && bb) this.structurePass.draw(cam, zoom);
+    if (pe.structure && bb) this.structureLevelPass.draw(cam, zoom);
     // Small-player glow draws after structures so buildings can't hide it.
     this.smallPlayerGlowPass.draw(cam);
-    if (pe.bar) this.barPass.draw(cam);
+    if (pe.bar && bb) this.barPass.draw(cam);
     this.updateSelectionBox();
     this.selectionBoxPass.draw(cam, this.frameTick);
     this.moveIndicatorPass.draw(cam, zoom);
@@ -1505,7 +1557,7 @@ export class GPURenderer {
     if (!this.altView) this.spiralRibbonPass.draw(cam);
     if (pe.unit) {
       this.unitPass.setHideNukes(this.nukeFlightPass.isActive());
-      this.unitPass.drawMissiles(cam);
+      if (bb) this.unitPass.drawMissiles(cam);
       this.nukeFlightPass.draw(cam, zoom);
     }
 
@@ -1517,14 +1569,38 @@ export class GPURenderer {
     // Grid shows on either trigger; names hide only under alt-view (space
     // hold), not under the persistent M-key gridView toggle.
     if (this.gridView || this.altView) this.coordinateGridPass.draw(cam, zoom);
-    if (pe.name && !this.altView)
+    if (bb) this.drawNamesAndText(cam, zoom);
+
+    gl.disable(gl.BLEND);
+  }
+
+  private drawNamesAndText(cam: Float32Array, zoom: number): void {
+    if (this.settings.passEnabled.name && !this.altView)
       this.namePass.draw(cam, this.nightCompositePass.getAmbient());
 
     // World text (attack-troop labels, popups, ghost cost) draws on top of
     // player names so attack callouts aren't hidden behind a centered name.
     this.worldTextPass.tick(zoom);
     this.worldTextPass.draw(cam, zoom);
+  }
 
+  /**
+   * 3D view: unit sprites, structure icons and levels, bars, names and world
+   * text, drawn upright over the terrain mesh (see view3d/Billboard.ts).
+   * `cam` is a top-down camera at the true zoom around the look-at point;
+   * the billboard projection anchors each overlay on the 3D terrain.
+   */
+  private renderBillboards(cam: Float32Array, zoom: number): void {
+    const gl = this.gl;
+    const pe = this.settings.passEnabled;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    if (pe.unit) this.unitPass.drawGround(cam);
+    if (pe.structure) this.structurePass.draw(cam, zoom);
+    if (pe.structure) this.structureLevelPass.draw(cam, zoom);
+    if (pe.bar) this.barPass.draw(cam);
+    if (pe.unit) this.unitPass.drawMissiles(cam);
+    this.drawNamesAndText(cam, zoom);
     gl.disable(gl.BLEND);
   }
 

@@ -17,6 +17,7 @@
  * `phase` is the step we were on when the loss surfaced; it says nothing
  * about which shader is at fault, only where the context gave out.
  */
+import { injectBillboard, registerBillboardProgram } from "../view3d/Billboard";
 export class GLContextLostError extends Error {
   constructor(readonly phase: "compile" | "link") {
     super(
@@ -92,7 +93,12 @@ export function createProgram(
   fragSrc: string,
   name: string,
 ): WebGLProgram {
-  const vs = compileShader(gl, gl.VERTEX_SHADER, vertSrc, `${name} vertex`);
+  const vs = compileShader(
+    gl,
+    gl.VERTEX_SHADER,
+    injectBillboard(vertSrc),
+    `${name} vertex`,
+  );
   const fs = compileShader(gl, gl.FRAGMENT_SHADER, fragSrc, `${name} fragment`);
   const program = gl.createProgram()!;
   gl.attachShader(program, vs);
@@ -106,6 +112,7 @@ export function createProgram(
     gl.deleteProgram(program);
     throw err;
   }
+  registerBillboardProgram(gl, program);
   return program;
 }
 

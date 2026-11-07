@@ -120,6 +120,11 @@ export class Terrain3DPass {
     gl.bindVertexArray(null);
   }
 
+  /** The R8 height texture (also sampled by billboard projection). */
+  heightTexture(): WebGLTexture {
+    return this.heightTex;
+  }
+
   /** Re-upload part of the height field (after water-nuke craters). */
   updateHeights(
     heights: HeightField,
