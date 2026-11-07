@@ -114,6 +114,18 @@ export interface RenderSettings {
     lightStrength: number;
     /** Distance haze toward the far edge (0 = none). */
     haze: number;
+    /** Sun glints, waves and sky reflection on water (0 = none). */
+    sea: number;
+    /** Drifting cloud layer with ground shadows (fades out when zoomed in). */
+    clouds: boolean;
+    /** Share of the sky covered by clouds, 0..1. */
+    cloudCover: number;
+    /** Cloud opacity, 0..1. */
+    cloudAlpha: number;
+    /** Cloud layer altitude, in tiles. */
+    cloudHeight: number;
+    /** How much clouds darken the ground below them, 0..1. */
+    cloudShadow: number;
   };
   falloutBloom: {
     broilSpeedCold: number;

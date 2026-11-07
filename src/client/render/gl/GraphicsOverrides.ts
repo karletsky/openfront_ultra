@@ -135,6 +135,8 @@ export const GraphicsOverridesSchema = z
         pitch: z.number(),
         // Height of the highest mountains, in tiles.
         heightScale: z.number(),
+        // Drifting clouds with ground shadows (fade out when zoomed in).
+        clouds: z.boolean(),
       })
       .partial(),
     lighting: z

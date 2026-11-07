@@ -767,6 +767,17 @@ export class GraphicsAdvancedSettings extends LitElement {
     this.patchView3d({ enabled: !this.currentView3dEnabled() });
   }
 
+  private currentView3dClouds(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().view3d?.clouds ??
+      renderDefaults.view3d.clouds
+    );
+  }
+
+  private onToggleView3dClouds() {
+    this.patchView3d({ clouds: !this.currentView3dClouds() });
+  }
+
   private currentView3dPitch(): number {
     return (
       this.userSettings.graphicsOverrides().view3d?.pitch ??
@@ -1435,6 +1446,14 @@ export class GraphicsAdvancedSettings extends LitElement {
         id="view3d-toggle"
         .checked=${this.currentView3dEnabled()}
         @change=${this.onToggleView3d}
+      ></setting-toggle>
+
+      <setting-toggle
+        label=${translateText("graphics_setting.view3d_clouds_label")}
+        description=${translateText("graphics_setting.view3d_clouds_desc")}
+        id="view3d-clouds-toggle"
+        .checked=${this.currentView3dClouds()}
+        @change=${this.onToggleView3dClouds}
       ></setting-toggle>
 
       <setting-slider

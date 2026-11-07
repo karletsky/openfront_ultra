@@ -31,6 +31,7 @@ import type {
 } from "../types";
 import { Camera } from "./Camera";
 import { GLUnavailableError, initGL } from "./initGL";
+import { AtmospherePass } from "./passes/AtmospherePass";
 import { BarPass } from "./passes/BarPass";
 import { BorderComputePass } from "./passes/BorderComputePass";
 import { BorderStampPass } from "./passes/BorderStampPass";
@@ -144,6 +145,7 @@ export class GPURenderer {
   // --- Tilted 3D view (settings.view3d) ---
   private heightField: HeightField;
   private terrain3DPass: Terrain3DPass;
+  private atmospherePass: AtmospherePass;
   /** Offscreen image the flat map is drawn into while the 3D view is on. */
   private mapTarget: RenderTarget;
   /** 3D view: the glowing effects drawn in map-image space (draped later). */
@@ -345,6 +347,12 @@ export class GPURenderer {
       mapW,
       mapH,
       this.heightField,
+      this.settings.view3d,
+    );
+    this.atmospherePass = new AtmospherePass(
+      gl,
+      mapW,
+      mapH,
       this.settings.view3d,
     );
 
@@ -1454,7 +1462,10 @@ export class GPURenderer {
     gl.clearColor(bgf[0], bgf[1], bgf[2], 1);
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.atmospherePass.drawSky(bgf);
     this.terrain3DPass.draw(view, this.imgCam, this.mapTarget.tex, bgf);
+    // Above the terrain, below icons and names.
+    this.atmospherePass.drawClouds(view);
 
     // Glow: the emissive effects in image space, draped like the map.
     const glow = this.glowActive();
@@ -1750,6 +1761,7 @@ export class GPURenderer {
     }
     this.terrainPass.dispose();
     this.terrain3DPass.dispose();
+    this.atmospherePass.dispose();
     this.glowPass.dispose();
     this.gl.deleteFramebuffer(this.emissiveImage.fbo);
     this.gl.deleteTexture(this.emissiveImage.tex);

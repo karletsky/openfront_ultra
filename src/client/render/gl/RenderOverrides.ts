@@ -185,6 +185,9 @@ export function applyGraphicsOverrides(
   if (overrides.view3d?.heightScale !== undefined) {
     settings.view3d.heightScale = overrides.view3d.heightScale;
   }
+  if (overrides.view3d?.clouds !== undefined) {
+    settings.view3d.clouds = overrides.view3d.clouds;
+  }
   if (overrides.terrain?.enhanced !== undefined) {
     settings.terrain.enhanced = overrides.terrain.enhanced;
   }
