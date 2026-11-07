@@ -1146,6 +1146,8 @@
     "cosmetics_warships_label": "Warships",
     "enhanced_terrain_desc": "Shade hills and mountains, animate the water and show foam along coastlines. Disable for the flat classic look or to improve performance",
     "enhanced_terrain_label": "Enhanced terrain",
+    "enhanced_units_desc": "Draw nukes as missiles with exhaust plumes and glowing fireball explosions, and outline ships and trains. Disable for the classic sprites",
+    "enhanced_units_label": "Enhanced units",
     "fallout_desc": "Show the green nuclear fallout glow on irradiated territory. Disable to improve performance",
     "fallout_label": "Fallout effects",
     "highland_color_desc": "Base color for higher-elevation terrain.",

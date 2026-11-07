@@ -92,6 +92,11 @@ const ATLAS_COLS = UNIT_ORDER.length;
 /** Atlas column of the hydrogen bomb — drives the GPU glow halo. */
 const HYDROGEN_BOMB_COL = UNIT_ORDER.indexOf(UT_HYDROGEN_BOMB);
 
+/** Atlas columns of the other nuke types (hidden while NukeFlightPass draws them). */
+const ATOM_BOMB_COL = UNIT_ORDER.indexOf(UT_ATOM_BOMB);
+const MIRV_COL = UNIT_ORDER.indexOf(UT_MIRV);
+const MIRV_WARHEAD_COL = UNIT_ORDER.indexOf(UT_MIRV_WARHEAD);
+
 /** Atlas column of the warship — gates the warship cosmetic effect. */
 const WARSHIP_COL = UNIT_ORDER.indexOf(UT_WARSHIP);
 
@@ -218,6 +223,10 @@ export class UnitPass {
   private uHBombGlowStrength: WebGLUniformLocation;
   private uHBombGlowInner: WebGLUniformLocation;
   private uUntargetableAlpha: WebGLUniformLocation;
+  private uHideNukes: WebGLUniformLocation | null;
+  private uShipOutline: WebGLUniformLocation | null;
+  /** Set by the renderer: NukeFlightPass is drawing nukes instead. */
+  private hideNukes = false;
 
   private affiliationTex: WebGLTexture | null = null;
   private altView = false;
@@ -290,7 +299,13 @@ export class UnitPass {
     // Compile shaders
     this.program = createProgram(
       gl,
-      shaderSrc(unitVertSrc, { ATLAS_COLS, HYDROGEN_BOMB_COL }),
+      shaderSrc(unitVertSrc, {
+        ATLAS_COLS,
+        HYDROGEN_BOMB_COL,
+        ATOM_BOMB_COL,
+        MIRV_COL,
+        MIRV_WARHEAD_COL,
+      }),
       shaderSrc(unitFragSrc, {
         PALETTE_SIZE: getPaletteSize(),
         ATLAS_COLS,
@@ -331,6 +346,8 @@ export class UnitPass {
       this.program,
       "uUntargetableAlpha",
     )!;
+    this.uHideNukes = gl.getUniformLocation(this.program, "uHideNukes");
+    this.uShipOutline = gl.getUniformLocation(this.program, "uShipOutline");
 
     // Texture unit bindings
     gl.useProgram(this.program);
@@ -572,6 +589,10 @@ export class UnitPass {
   setAltView(active: boolean): void {
     this.altView = active;
   }
+  /** Hide nuke sprites (atom, hydrogen, MIRV, warhead) while NukeFlightPass draws them. */
+  setHideNukes(hide: boolean): void {
+    this.hideNukes = hide;
+  }
   setAffiliationTex(tex: WebGLTexture): void {
     this.affiliationTex = tex;
   }
@@ -611,6 +632,8 @@ export class UnitPass {
     gl.uniform1f(this.uHBombGlowStrength, us.hBombGlowStrength);
     gl.uniform1f(this.uHBombGlowInner, us.hBombGlowInner);
     gl.uniform1f(this.uUntargetableAlpha, us.untargetableAlpha);
+    gl.uniform1i(this.uHideNukes, this.hideNukes ? 1 : 0);
+    gl.uniform1i(this.uShipOutline, us.shipOutline ? 1 : 0);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.paletteTex);

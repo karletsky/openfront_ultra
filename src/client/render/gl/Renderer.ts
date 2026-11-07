@@ -45,6 +45,7 @@ import { MapLayerPass } from "./passes/MapLayerPass";
 import { MoveIndicatorPass } from "./passes/MoveIndicatorPass";
 import { NamePass } from "./passes/name-pass";
 import { NightCompositePass } from "./passes/NightCompositePass";
+import { NukeFlightPass } from "./passes/NukeFlightPass";
 import { NukeTelegraphPass } from "./passes/NukeTelegraphPass";
 import { NukeTrajectoryPass } from "./passes/NukeTrajectoryPass";
 import { PointLightPass } from "./passes/PointLightPass";
@@ -161,6 +162,7 @@ export class GPURenderer {
   private structurePass: StructurePass;
   private structureLevelPass: StructureLevelPass;
   private unitPass: UnitPass;
+  private nukeFlightPass: NukeFlightPass;
   private namePass: NamePass;
   private fxPass: FxPass;
   private rangeCirclePass: RangeCirclePass;
@@ -623,6 +625,13 @@ export class GPURenderer {
       this.settings,
       config,
     );
+    this.nukeFlightPass = new NukeFlightPass(
+      gl,
+      header.mapWidth,
+      this.paletteTex,
+      this.settings,
+      config,
+    );
     this.namePass = new NamePass(
       gl,
       header,
@@ -954,6 +963,7 @@ export class GPURenderer {
     this.frameTick++;
     this.unitPass.setFrameTick(this.frameTick);
     this.unitPass.updateUnits(units, gameTick);
+    this.nukeFlightPass.updateUnits(units);
     this.samRadiusPass.setTick(gameTick);
     this.barPass.updateBars(units, this.lastStructures, gameTick);
     this.pointLightPass.updateLights(units);
@@ -1211,6 +1221,7 @@ export class GPURenderer {
     this.territoryPass.setAltView(active);
     this.borderStampPass.setAltView(active);
     this.unitPass.setAltView(active);
+    this.nukeFlightPass.setAltView(active);
     this.structurePass.setAltView(active);
     this.trailPass.setAltView(active);
   }
@@ -1492,7 +1503,11 @@ export class GPURenderer {
     // Spiral vortexes sit above the plain trails, below the missiles that
     // trail them. Skipped in alt view — the strategic overlay stays effects-free.
     if (!this.altView) this.spiralRibbonPass.draw(cam);
-    if (pe.unit) this.unitPass.drawMissiles(cam);
+    if (pe.unit) {
+      this.unitPass.setHideNukes(this.nukeFlightPass.isActive());
+      this.unitPass.drawMissiles(cam);
+      this.nukeFlightPass.draw(cam, zoom);
+    }
 
     if (pe.fx) {
       this.fxPass.tick();
@@ -1622,6 +1637,7 @@ export class GPURenderer {
     this.structurePass.dispose();
     this.structureLevelPass.dispose();
     this.unitPass.dispose();
+    this.nukeFlightPass.dispose();
     this.namePass.dispose();
     this.fxPass.dispose();
     this.worldTextPass.dispose();

@@ -114,6 +114,13 @@ export const GraphicsOverridesSchema = z
         enhanced: z.boolean(),
       })
       .partial(),
+    units: z
+      .object({
+        // Procedural nukes in flight, fireball detonations and outlined
+        // ships/trains. Disable for the classic sprites.
+        enhanced: z.boolean(),
+      })
+      .partial(),
     view3d: z
       .object({
         // Tilted 3D map view; false = the classic flat top-down map.

@@ -917,6 +917,22 @@ export class GraphicsAdvancedSettings extends LitElement {
     this.patchPassEnabled({ fx: !this.currentSpecialEffects() });
   }
 
+  private currentEnhancedUnits(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().units?.enhanced ??
+      renderDefaults.unit.enhancedNukes
+    );
+  }
+
+  private onToggleEnhancedUnits() {
+    const current = this.userSettings.graphicsOverrides();
+    this.writeOverrides({
+      ...current,
+      units: { ...current.units, enhanced: !this.currentEnhancedUnits() },
+    });
+    this.requestUpdate();
+  }
+
   private currentFallout(): boolean {
     return (
       this.userSettings.graphicsOverrides().passEnabled?.fallout ??
@@ -1499,6 +1515,14 @@ export class GraphicsAdvancedSettings extends LitElement {
         id="special-effects-toggle"
         .checked=${this.currentSpecialEffects()}
         @change=${this.onToggleSpecialEffects}
+      ></setting-toggle>
+
+      <setting-toggle
+        label=${translateText("graphics_setting.enhanced_units_label")}
+        description=${translateText("graphics_setting.enhanced_units_desc")}
+        id="enhanced-units-toggle"
+        .checked=${this.currentEnhancedUnits()}
+        @change=${this.onToggleEnhancedUnits}
       ></setting-toggle>
 
       <setting-toggle

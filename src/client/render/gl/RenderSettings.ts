@@ -301,6 +301,18 @@ export interface RenderSettings {
     hBombGlowStrength: number; // peak opacity of the glow
     hBombGlowInner: number; // radial falloff start (0..1, quad-space)
     untargetableAlpha: number; // alpha for nukes SAMs can't target (0..1)
+    /**
+     * Draw nukes in flight as procedural missiles (NukeFlightPass) instead
+     * of the flickering sprites. Alt view always keeps the sprites.
+     */
+    enhancedNukes: boolean;
+    /** Dark outline + drop shadow on ships and trains (not in alt view). */
+    shipOutline: boolean;
+    nukeSizeScale: number; // missile length multiplier
+    nukeMinLengthPx: number; // minimum on-screen missile length, pixels
+    nukeShadowHeight: number; // ground-shadow drift at mid-flight, in missile lengths
+    nukeGlowStrength: number; // heat glow opacity (0..1)
+    nukePlumeLength: number; // exhaust plume length, in missile lengths
   };
   name: {
     lerpSpeed: number;
@@ -333,6 +345,11 @@ export interface RenderSettings {
     shockwaveRingWidth: number;
     attackRingScreenPx: number; // screen px — attack ring quad half-size (visible outer ring = 0.8×)
     nukeShockwaveDurationMs: number;
+    /**
+     * Default (no-cosmetic) nuke detonation: flash + cooling fireball + warm
+     * shock ring (shockwave style 4) instead of the plain white ring.
+     */
+    enhancedNukeExplosion: boolean;
     nukeShockwaveRadiusFactor: number;
     samShockwaveDurationMs: number;
     samShockwaveRadius: number;

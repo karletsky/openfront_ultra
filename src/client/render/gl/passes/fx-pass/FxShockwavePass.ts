@@ -32,7 +32,7 @@ interface ActiveShockwave {
   startMs: number;
   durationMs: number;
   maxRadius: number;
-  style: number; // 0 = classic ring (SAM + no-cosmetic nuke), 1 = EMP, 2 = sparkles, 3 = embers
+  style: number; // 0 = classic ring (SAM, or no-cosmetic nuke with enhanced explosions off), 1 = EMP, 2 = sparkles, 3 = embers, 4 = fireball (no-cosmetic nuke)
   colors: readonly RGB[]; // 1..MAX_NUKE_EXPLOSION_COLORS palette, never empty
   speed: number; // crackle-animation multiplier (effect pace vs the default)
   transitionSpeed: number; // palette step rate (colors/s); 0 = static, <0 = reverse
@@ -215,15 +215,17 @@ export class FxShockwavePass {
       // Cosmetic maxRadius is absolute (world tiles); the default look scales
       // with the bomb's blast radius.
       maxRadius: params?.maxRadius ?? nukeRadius * fx.nukeShockwaveRadiusFactor,
-      // Cosmetic type → its style; no cosmetic → classic ring (the original
-      // nuke look).
+      // Cosmetic type → its style; no cosmetic → the fireball, or the
+      // original classic ring when enhanced explosions are off.
       style: params
         ? params.type === "sparkles"
           ? 2
           : params.type === "embers"
             ? 3
             : 1
-        : 0,
+        : fx.enhancedNukeExplosion
+          ? 4
+          : 0,
       colors: params?.colors ?? [DEFAULT_NUKE_EXPLOSION_COLOR],
       speed,
       transitionSpeed: params?.transitionSpeed ?? 0,
