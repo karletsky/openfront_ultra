@@ -16,7 +16,6 @@ import {
   TechId,
 } from "@openfront/engine-api/game/Tech";
 import { TeamCountConfig } from "@openfront/engine-api/Schemas";
-import { NukeType } from "@openfront/engine-api/StatsSchemas";
 import { Config } from "@openfront/engine-lib/configuration/Config";
 import { exp, log, pow2 } from "@openfront/engine-lib/DetMath";
 import {
