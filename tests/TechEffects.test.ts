@@ -1,9 +1,9 @@
 import {
   PlayerInfo,
   PlayerType,
+  TerrainType,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
-import { TerrainType } from "@openfront/engine-api/game/GameTypes";
 import { TECH_EFFECTS, TechId } from "@openfront/engine-api/game/Tech";
 import { EngineConfig } from "@openfront/engine/configuration/EngineConfig";
 import { SpawnExecution } from "@openfront/engine/execution/SpawnExecution";
