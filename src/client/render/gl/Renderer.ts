@@ -59,6 +59,7 @@ import { SpawnOverlayPass } from "./passes/SpawnOverlayPass";
 import { SpiralRibbonPass } from "./passes/SpiralRibbonPass";
 import { StructureLevelPass } from "./passes/StructureLevelPass";
 import { StructurePass } from "./passes/StructurePass";
+import { Terrain3DPass } from "./passes/Terrain3DPass";
 import { TerrainPass } from "./passes/TerrainPass";
 import { TerritoryPass } from "./passes/TerritoryPass";
 import { TrailPass } from "./passes/TrailPass";
@@ -74,7 +75,10 @@ import {
 } from "./utils/ColorUtils";
 import { renderDpr } from "./utils/Dpr";
 import {
+  createRenderTarget,
   createTexture2D,
+  installDefaultFramebufferRedirect,
+  resizeRenderTarget,
   toScreen,
   toTarget,
   type RenderTarget,
@@ -85,6 +89,13 @@ import {
   type GPUResources,
 } from "./utils/GpuResources";
 import { HeatManager } from "./utils/HeatManager";
+import { HeightField } from "./view3d/HeightField";
+import {
+  buildView3D,
+  fitOrtho,
+  groundFootprint,
+  orthoMatrix,
+} from "./view3d/Projection3D";
 
 /** Ghost types that trigger SAM radius overlay (matches upstream SAMRadiusLayer). */
 const SAM_RADIUS_GHOST_TYPES = new Set([
@@ -118,6 +129,24 @@ export class GPURenderer {
 
   // Passes
   private terrainPass: TerrainPass;
+  // --- Tilted 3D view (settings.view3d) ---
+  private heightField: HeightField;
+  private terrain3DPass: Terrain3DPass;
+  /** Offscreen image the flat map is drawn into while the 3D view is on. */
+  private mapTarget: RenderTarget;
+  /** 2D camera the offscreen map image was drawn with this frame. */
+  private imgCam = new Float32Array(9);
+  /**
+   * Framebuffer that `bindFramebuffer(…, null)` resolves to. Normally the
+   * canvas (null); while the 3D view renders the flat map, the offscreen
+   * map target — so every pass that "returns to the screen" after its own
+   * offscreen work lands back in the map image instead.
+   */
+  private virtualDefaultFbo: WebGLFramebuffer | null = null;
+  private rawBindFramebuffer: (
+    target: GLenum,
+    fb: WebGLFramebuffer | null,
+  ) => void;
   private territoryPass: TerritoryPass;
   private trailPass: TrailPass;
   private spiralRibbonPass: SpiralRibbonPass;
@@ -250,6 +279,10 @@ export class GPURenderer {
     const gl = res.gl;
     this.gl = gl;
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    this.rawBindFramebuffer = installDefaultFramebufferRedirect(
+      gl,
+      () => this.virtualDefaultFbo,
+    );
 
     const floatExt = gl.getExtension("EXT_color_buffer_float");
     if (!floatExt)
@@ -284,6 +317,16 @@ export class GPURenderer {
           hexToRgb(this.settings.terrain.mountainColor) ?? undefined,
       },
       this.settings.terrain,
+    );
+
+    // --- 3D view: height field + draped terrain mesh ---
+    this.heightField = new HeightField(mapW, mapH, terrainBytes);
+    this.terrain3DPass = new Terrain3DPass(
+      gl,
+      mapW,
+      mapH,
+      this.heightField,
+      this.settings.view3d,
     );
 
     // --- Terrain bytes R8UI texture (shared by map-layer passes) ---
@@ -625,6 +668,7 @@ export class GPURenderer {
     );
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.sceneTarget = { fbo: sceneFbo, tex: sceneTex, w: 1, h: 1 };
+    this.mapTarget = createRenderTarget(gl, 1, 1);
 
     // --- Alt-view passes ---
     this.affiliationPalette = new AffiliationPalette(gl, this.settings);
@@ -989,6 +1033,14 @@ export class GPURenderer {
     if (rects.length === 0) return;
     this.terrainPass.applyTerrainRects(rects, bytes);
     this.railroadPass.applyTerrainRects(rects, bytes);
+    {
+      let off = 0;
+      for (const r of rects) {
+        this.heightField.applyRect(r.x, r.y, r.w, r.h, bytes, off);
+        this.terrain3DPass.updateHeights(this.heightField, r.x, r.y, r.w, r.h);
+        off += r.w * r.h;
+      }
+    }
     // Update the shared R8UI terrain-bytes texture used by map-layer passes.
     if (!this.terrainBytesTex) return;
     const gl = this.gl;
@@ -1176,6 +1228,11 @@ export class GPURenderer {
     return this.settings;
   }
 
+  /** Terrain elevation used by the 3D view (shared with input picking). */
+  getHeightField(): HeightField {
+    return this.heightField;
+  }
+
   // ---------------------------------------------------------------------------
   // Selection box (warship selection)
   // ---------------------------------------------------------------------------
@@ -1290,8 +1347,58 @@ export class GPURenderer {
   }
 
   private renderFrame(): void {
-    const cam = this.camera.getMatrix();
-    const zoom = this.camera.zoom;
+    if (this.settings.view3d.enabled) {
+      this.renderFrame3D();
+      return;
+    }
+    this.renderFrame2D(this.camera.getMatrix(), this.camera.zoom);
+  }
+
+  /**
+   * Tilted 3D view: draw the whole flat map (every pass, unchanged) into an
+   * offscreen image with a 2D camera that covers everything the 3D camera
+   * can see, then drape that image over the terrain mesh.
+   */
+  private renderFrame3D(): void {
+    const gl = this.gl;
+    const cw = this.canvas.width;
+    const ch = this.canvas.height;
+    const v3 = this.settings.view3d;
+    const view = buildView3D({
+      centerX: this.camera.offsetX,
+      centerY: this.camera.offsetY,
+      zoom: this.camera.zoom,
+      viewW: cw,
+      viewH: ch,
+      pitchDeg: v3.pitch,
+      fovDeg: v3.fov,
+    });
+    const ortho = fitOrtho(groundFootprint(view, v3.heightScale), cw, ch);
+    orthoMatrix(ortho.centerX, ortho.centerY, ortho.zoom, cw, ch, this.imgCam);
+
+    resizeRenderTarget(gl, this.mapTarget, cw, ch);
+    this.virtualDefaultFbo = this.mapTarget.fbo;
+    try {
+      this.renderFrame2D(this.imgCam, ortho.zoom);
+    } finally {
+      this.virtualDefaultFbo = null;
+    }
+
+    const bg = hexToRgb(this.settings.terrain.backgroundColor) ?? [60, 60, 60];
+    const bgf: [number, number, number] = [
+      bg[0] / 255,
+      bg[1] / 255,
+      bg[2] / 255,
+    ];
+    this.rawBindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, cw, ch);
+    gl.clearColor(bgf[0], bgf[1], bgf[2], 1);
+    gl.clearDepth(1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.terrain3DPass.draw(view, this.imgCam, this.mapTarget.tex, bgf);
+  }
+
+  private renderFrame2D(cam: Float32Array, zoom: number): void {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
     const compositingActive = this.isLightCompositingActive();
@@ -1489,6 +1596,9 @@ export class GPURenderer {
       this.terrainBytesTex = null;
     }
     this.terrainPass.dispose();
+    this.terrain3DPass.dispose();
+    this.gl.deleteFramebuffer(this.mapTarget.fbo);
+    this.gl.deleteTexture(this.mapTarget.tex);
     this.territoryPass.dispose();
     this.trailPass.dispose();
     this.spiralRibbonPass.dispose();

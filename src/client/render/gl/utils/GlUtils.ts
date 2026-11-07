@@ -308,3 +308,53 @@ export function createMapQuad(
   gl.bindVertexArray(null);
   return vao;
 }
+
+/** Resize a render target's texture in place (no-op when unchanged). */
+export function resizeRenderTarget(
+  gl: WebGL2RenderingContext,
+  target: RenderTarget,
+  w: number,
+  h: number,
+): void {
+  if (target.w === w && target.h === h) return;
+  target.w = w;
+  target.h = h;
+  gl.bindTexture(gl.TEXTURE_2D, target.tex);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA8,
+    w,
+    h,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    null,
+  );
+}
+
+type BindFramebuffer = (target: GLenum, fb: WebGLFramebuffer | null) => void;
+const rawBinds = new WeakMap<WebGL2RenderingContext, BindFramebuffer>();
+
+/**
+ * Make `gl.bindFramebuffer(target, null)` bind `resolveDefault()` instead of
+ * the canvas. Lets the 3D view capture the whole 2D pipeline into an
+ * offscreen image without touching the many passes that "return to the
+ * screen" after their own offscreen work. Returns the original (unpatched)
+ * bind for code that really needs the canvas. Safe to call again on the same
+ * context (e.g. after a renderer is recreated): the latest resolver wins.
+ */
+export function installDefaultFramebufferRedirect(
+  gl: WebGL2RenderingContext,
+  resolveDefault: () => WebGLFramebuffer | null,
+): BindFramebuffer {
+  let raw = rawBinds.get(gl);
+  if (!raw) {
+    raw = gl.bindFramebuffer.bind(gl);
+    rawBinds.set(gl, raw);
+  }
+  const bind = raw;
+  gl.bindFramebuffer = (target: GLenum, fb: WebGLFramebuffer | null) =>
+    bind(target, fb ?? resolveDefault());
+  return bind;
+}

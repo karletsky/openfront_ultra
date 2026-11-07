@@ -167,6 +167,15 @@ export function applyGraphicsOverrides(
   if (overrides.terrain?.mountainColor !== undefined) {
     settings.terrain.mountainColor = overrides.terrain.mountainColor;
   }
+  if (overrides.view3d?.enabled !== undefined) {
+    settings.view3d.enabled = overrides.view3d.enabled;
+  }
+  if (overrides.view3d?.pitch !== undefined) {
+    settings.view3d.pitch = overrides.view3d.pitch;
+  }
+  if (overrides.view3d?.heightScale !== undefined) {
+    settings.view3d.heightScale = overrides.view3d.heightScale;
+  }
   if (overrides.terrain?.enhanced !== undefined) {
     settings.terrain.enhanced = overrides.terrain.enhanced;
   }

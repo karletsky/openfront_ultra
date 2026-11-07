@@ -28,6 +28,14 @@
     "waterStrength": 1,
     "foamStrength": 0.6
   },
+  "view3d": {
+    "enabled": true,
+    "pitch": 40,
+    "fov": 35,
+    "heightScale": 30,
+    "lightStrength": 0.6,
+    "haze": 0.25
+  },
   "falloutBloom": {
     "broilSpeedCold": 0.0018,
     "broilSpeedHot": 0,

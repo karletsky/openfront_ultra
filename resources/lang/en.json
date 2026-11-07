@@ -1223,7 +1223,13 @@
     "territory_alpha_desc": "How opaque the territory fill is (lower lets terrain show through)",
     "territory_alpha_label": "Territory opacity",
     "territory_sat_desc": "How vivid the territory fill colors are (lower mutes them)",
-    "territory_sat_label": "Territory saturation"
+    "territory_sat_label": "Territory saturation",
+    "view3d_desc": "Show the map in 3D: a tilted camera with raised mountains and hills. Disable for the classic flat top-down map",
+    "view3d_height_desc": "How tall the highest mountains are in the 3D view.",
+    "view3d_height_label": "3D terrain height",
+    "view3d_label": "3D view",
+    "view3d_pitch_desc": "How far the 3D camera tilts away from straight down.",
+    "view3d_pitch_label": "3D camera tilt"
   },
   "heads_up_message": {
     "catching_up": "Catching up...",

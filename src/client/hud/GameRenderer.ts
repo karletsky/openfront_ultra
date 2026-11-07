@@ -60,6 +60,7 @@ export function createRenderer(
   mapLayerController?: MapLayerController,
 ): GameRenderer {
   const transformHandler = new TransformHandler(game, eventBus, inputEl);
+  transformHandler.setProjector(view.projector);
   const userSettings = new UserSettings();
 
   const uiState: UIState = {

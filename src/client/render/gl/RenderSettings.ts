@@ -92,6 +92,23 @@ export interface RenderSettings {
     /** Shoreline foam strength (0 = none). */
     foamStrength: number;
   };
+  /**
+   * Tilted 3D view: the flat map is draped over a terrain mesh and seen
+   * through a perspective camera (see GPURenderer.renderFrame3D).
+   */
+  view3d: {
+    enabled: boolean;
+    /** Camera tilt from straight down, degrees (0-60). */
+    pitch: number;
+    /** Vertical field of view, degrees. */
+    fov: number;
+    /** Height of the highest mountains, in tiles. */
+    heightScale: number;
+    /** Directional lighting on slopes (0 = none). */
+    lightStrength: number;
+    /** Distance haze toward the far edge (0 = none). */
+    haze: number;
+  };
   falloutBloom: {
     broilSpeedCold: number;
     broilSpeedHot: number;

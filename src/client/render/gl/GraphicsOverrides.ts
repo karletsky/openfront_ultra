@@ -114,6 +114,16 @@ export const GraphicsOverridesSchema = z
         enhanced: z.boolean(),
       })
       .partial(),
+    view3d: z
+      .object({
+        // Tilted 3D map view; false = the classic flat top-down map.
+        enabled: z.boolean(),
+        // Camera tilt from straight down, degrees.
+        pitch: z.number(),
+        // Height of the highest mountains, in tiles.
+        heightScale: z.number(),
+      })
+      .partial(),
     lighting: z
       .object({
         // Scene brightness multiplier in the day/night composite. <1 darkens
