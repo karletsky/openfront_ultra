@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+#pragma billboard3d
 
 layout(location = 0) in vec2 aPos;
 
@@ -11,6 +12,7 @@ uniform mat3  uCamera;
 
 uniform float uUnitSize;
 uniform float uHBombGlowScale; // quad enlargement for the hydrogen bomb glow halo
+uniform int uHideNukes; // NukeFlightPass draws nukes instead of these sprites
 
 out vec2  vQuadPos;     // quad coords [0,1] — drives the radial glow falloff
 out vec2  vCellUV;      // sprite cell coords; the central 1/scale region is the sprite
@@ -29,6 +31,19 @@ void main() {
   float atlasCol = aInstFlags.x;
   vFlags = aInstFlags.y;
   vAtlasCol = atlasCol;
+
+  if (uHideNukes != 0) {
+    float isNuke =
+      step(abs(atlasCol - float(ATOM_BOMB_COL)), 0.5) +
+      step(abs(atlasCol - float(HYDROGEN_BOMB_COL)), 0.5) +
+      step(abs(atlasCol - float(MIRV_COL)), 0.5) +
+      step(abs(atlasCol - float(MIRV_WARHEAD_COL)), 0.5);
+    if (isNuke > 0.5) {
+      // Degenerate triangle: nothing rasterized.
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+  }
 
   // Per-instance hash so each unit flickers independently. Computed CPU-side
   // from the tick position — hashing worldX/Y here would re-roll the phase
@@ -49,8 +64,7 @@ void main() {
   vec2 worldPos = center + (aPos - 0.5) * halfSize * 2.0;
   vWorldPos = worldPos;
 
-  vec3 clip = uCamera * vec3(worldPos, 1.0);
-  gl_Position = vec4(clip.xy, 0.0, 1.0);
+  gl_Position = bbProject(uCamera, center, worldPos);
 
   vQuadPos = aPos;
 

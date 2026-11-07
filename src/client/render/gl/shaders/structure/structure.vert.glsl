@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+#pragma billboard3d
 
 layout(location = 0) in vec2 aPos;
 
@@ -57,8 +58,7 @@ void main() {
   vec2 center = vec2(worldX + 0.5, worldY + 0.5);
   vec2 worldPos = center + (aPos - 0.5) * halfSize * 2.0;
 
-  vec3 clip = uCamera * vec3(worldPos, 1.0);
-  gl_Position = vec4(clip.xy, 0.0, 1.0);
+  gl_Position = bbProject(uCamera, center, worldPos);
 
   vLocalPos = aPos - 0.5;
 

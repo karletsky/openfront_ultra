@@ -23,6 +23,7 @@ uniform vec3  uHBombGlowColor;
 uniform float uHBombGlowStrength;
 uniform float uHBombGlowInner;
 uniform float uUntargetableAlpha;
+uniform int   uShipOutline;       // dark outline + drop shadow on ships/trains
 
 in vec2  vQuadPos;
 in vec2  vCellUV;
@@ -94,6 +95,18 @@ bool spriteEffectColor(int rowBase, int owner, float coord, bool iconSpace, out 
   return true;
 }
 
+// Sprite alpha at a cell-space position (0 outside the cell).
+float cellAlpha(vec2 cuv) {
+  if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0) return 0.0;
+  vec2 atlasUV = vec2((vAtlasCol + cuv.x) / float(ATLAS_COLS), cuv.y);
+  return texture(uAtlas, atlasUV).a;
+}
+
+// Ships (transport, trade, warship = atlas cols 0-2) and trains (last three).
+bool isGroundUnit() {
+  return vAtlasCol < 2.5 || vAtlasCol > float(TRAIN_FIRST_COL) - 0.1;
+}
+
 void main() {
   // Untargetable nukes render translucent so players know SAMs can't hit them
   float alphaMul = abs(vFlags - FLAG_FLICKER_UNTARGETABLE) < 0.1
@@ -118,6 +131,24 @@ void main() {
       float g = (1.0 - smoothstep(uHBombGlowInner, 1.0, d)) * uHBombGlowStrength;
       if (g > 0.001) {
         fragColor = vec4(uHBombGlowColor, g * alphaMul);
+        return;
+      }
+    }
+    // Ships/trains: 1-px dark outline, then a soft drop shadow down-right,
+    // so they read against any terrain or territory color.
+    if (uShipOutline != 0 && uAltView == 0 && isGroundUnit()) {
+      float px = 1.0 / float(textureSize(uAtlas, 0).y);
+      float n =
+        cellAlpha(vCellUV + vec2(px, 0.0)) + cellAlpha(vCellUV - vec2(px, 0.0)) +
+        cellAlpha(vCellUV + vec2(0.0, px)) + cellAlpha(vCellUV - vec2(0.0, px));
+      if (n > 0.01) {
+        fragColor = vec4(0.05, 0.05, 0.07, 0.75);
+        return;
+      }
+      float s = cellAlpha(vCellUV - vec2(px, px) * 1.5) +
+        0.5 * cellAlpha(vCellUV - vec2(px, px) * 2.5);
+      if (s > 0.01) {
+        fragColor = vec4(0.0, 0.0, 0.0, 0.28 * min(s, 1.0));
         return;
       }
     }

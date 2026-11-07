@@ -1144,6 +1144,10 @@
     "cosmetics_transport_ship_trails_label": "Boat trails",
     "cosmetics_warships_desc": "Custom warship colors",
     "cosmetics_warships_label": "Warships",
+    "enhanced_terrain_desc": "Shade hills and mountains, animate the water and show foam along coastlines. Disable for the flat classic look or to improve performance",
+    "enhanced_terrain_label": "Enhanced terrain",
+    "enhanced_units_desc": "Draw nukes as missiles with exhaust plumes and glowing fireball explosions, and outline ships and trains. Disable for the classic sprites",
+    "enhanced_units_label": "Enhanced units",
     "fallout_desc": "Show the green nuclear fallout glow on irradiated territory. Disable to improve performance",
     "fallout_label": "Fallout effects",
     "highland_color_desc": "Base color for higher-elevation terrain.",
@@ -1221,7 +1225,13 @@
     "territory_alpha_desc": "How opaque the territory fill is (lower lets terrain show through)",
     "territory_alpha_label": "Territory opacity",
     "territory_sat_desc": "How vivid the territory fill colors are (lower mutes them)",
-    "territory_sat_label": "Territory saturation"
+    "territory_sat_label": "Territory saturation",
+    "view3d_desc": "Show the map in 3D: a tilted camera with raised mountains and hills. Disable for the classic flat top-down map",
+    "view3d_height_desc": "How tall the highest mountains are in the 3D view.",
+    "view3d_height_label": "3D terrain height",
+    "view3d_label": "3D view",
+    "view3d_pitch_desc": "How far the 3D camera tilts away from straight down.",
+    "view3d_pitch_label": "3D camera tilt"
   },
   "heads_up_message": {
     "catching_up": "Catching up...",

@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+#pragma billboard3d
 precision highp int;
 precision highp usampler2D;
 
@@ -172,8 +173,7 @@ void main() {
   vec2 worldPos = vec2(wx, wy + lineOffsetY) + glyphOrigin + aPos * glyphSize;
 
   // 9. Camera transform
-  vec3 clip = uCamera * vec3(worldPos, 1.0);
-  gl_Position = vec4(clip.xy, 0.0, 1.0);
+  gl_Position = bbProject(uCamera, vec2(wx, wy), worldPos);
 
   // 10. Fade the whole name plate when the cursor is on top of any part of it
   // so units underneath stay visible. Hit test runs on the CPU (NamePass).

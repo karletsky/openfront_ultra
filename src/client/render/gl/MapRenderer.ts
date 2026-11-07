@@ -34,8 +34,16 @@ import type { SpawnCenter } from "./passes/SpawnOverlayPass";
 import type { AttackTroopLabel } from "./passes/WorldTextPass";
 import { GPURenderer } from "./Renderer";
 import type { RenderSettings } from "./RenderSettings";
+import { View3DProjector } from "./view3d/View3DProjector";
 
 export class MapRenderer {
+  /**
+   * Screen ↔ world conversion for the tilted 3D view, for the input side
+   * (TransformHandler). Survives context restores: it reads the live
+   * settings and whichever renderer is current.
+   */
+  readonly projector: View3DProjector;
+
   private renderer: GPURenderer | null = null;
   private resizeObs: ResizeObserver | null = null;
   // Stored layer data for context-restore re-creation.
@@ -69,6 +77,10 @@ export class MapRenderer {
     private raf?: typeof requestAnimationFrame,
     private caf?: typeof cancelAnimationFrame,
   ) {
+    this.projector = new View3DProjector(
+      settings.view3d,
+      () => this.renderer?.getHeightField() ?? null,
+    );
     this.initRenderer();
 
     this.resizeObs = new ResizeObserver((entries) => {

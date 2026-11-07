@@ -45,6 +45,7 @@ import { MapLayerPass } from "./passes/MapLayerPass";
 import { MoveIndicatorPass } from "./passes/MoveIndicatorPass";
 import { NamePass } from "./passes/name-pass";
 import { NightCompositePass } from "./passes/NightCompositePass";
+import { NukeFlightPass } from "./passes/NukeFlightPass";
 import { NukeTelegraphPass } from "./passes/NukeTelegraphPass";
 import { NukeTrajectoryPass } from "./passes/NukeTrajectoryPass";
 import { PointLightPass } from "./passes/PointLightPass";
@@ -59,6 +60,7 @@ import { SpawnOverlayPass } from "./passes/SpawnOverlayPass";
 import { SpiralRibbonPass } from "./passes/SpiralRibbonPass";
 import { StructureLevelPass } from "./passes/StructureLevelPass";
 import { StructurePass } from "./passes/StructurePass";
+import { Terrain3DPass } from "./passes/Terrain3DPass";
 import { TerrainPass } from "./passes/TerrainPass";
 import { TerritoryPass } from "./passes/TerritoryPass";
 import { TrailPass } from "./passes/TrailPass";
@@ -74,7 +76,10 @@ import {
 } from "./utils/ColorUtils";
 import { renderDpr } from "./utils/Dpr";
 import {
+  createRenderTarget,
   createTexture2D,
+  installDefaultFramebufferRedirect,
+  resizeRenderTarget,
   toScreen,
   toTarget,
   type RenderTarget,
@@ -85,6 +90,23 @@ import {
   type GPUResources,
 } from "./utils/GpuResources";
 import { HeatManager } from "./utils/HeatManager";
+import { applyBillboardState, type BillboardState } from "./view3d/Billboard";
+import { HeightField } from "./view3d/HeightField";
+import {
+  buildView3D,
+  fitOrtho,
+  groundFootprint,
+  orthoMatrix,
+} from "./view3d/Projection3D";
+
+const BILLBOARDS_OFF: BillboardState = {
+  enabled: false,
+  viewProj: new Float32Array(16),
+  heightScale: 0,
+  centerDepth: 1,
+  mapW: 1,
+  mapH: 1,
+};
 
 /** Ghost types that trigger SAM radius overlay (matches upstream SAMRadiusLayer). */
 const SAM_RADIUS_GHOST_TYPES = new Set([
@@ -118,6 +140,27 @@ export class GPURenderer {
 
   // Passes
   private terrainPass: TerrainPass;
+  // --- Tilted 3D view (settings.view3d) ---
+  private heightField: HeightField;
+  private terrain3DPass: Terrain3DPass;
+  /** Offscreen image the flat map is drawn into while the 3D view is on. */
+  private mapTarget: RenderTarget;
+  /** 2D camera the offscreen map image was drawn with this frame. */
+  private imgCam = new Float32Array(9);
+  /** Top-down camera at the true zoom, for laying out billboards. */
+  private bbCam = new Float32Array(9);
+  private billboardsOn = false;
+  /**
+   * Framebuffer that `bindFramebuffer(…, null)` resolves to. Normally the
+   * canvas (null); while the 3D view renders the flat map, the offscreen
+   * map target — so every pass that "returns to the screen" after its own
+   * offscreen work lands back in the map image instead.
+   */
+  private virtualDefaultFbo: WebGLFramebuffer | null = null;
+  private rawBindFramebuffer: (
+    target: GLenum,
+    fb: WebGLFramebuffer | null,
+  ) => void;
   private territoryPass: TerritoryPass;
   private trailPass: TrailPass;
   private spiralRibbonPass: SpiralRibbonPass;
@@ -132,6 +175,7 @@ export class GPURenderer {
   private structurePass: StructurePass;
   private structureLevelPass: StructureLevelPass;
   private unitPass: UnitPass;
+  private nukeFlightPass: NukeFlightPass;
   private namePass: NamePass;
   private fxPass: FxPass;
   private rangeCirclePass: RangeCirclePass;
@@ -250,6 +294,10 @@ export class GPURenderer {
     const gl = res.gl;
     this.gl = gl;
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    this.rawBindFramebuffer = installDefaultFramebufferRedirect(
+      gl,
+      () => this.virtualDefaultFbo,
+    );
 
     const floatExt = gl.getExtension("EXT_color_buffer_float");
     if (!floatExt)
@@ -283,6 +331,17 @@ export class GPURenderer {
         mountainColor:
           hexToRgb(this.settings.terrain.mountainColor) ?? undefined,
       },
+      this.settings.terrain,
+    );
+
+    // --- 3D view: height field + draped terrain mesh ---
+    this.heightField = new HeightField(mapW, mapH, terrainBytes);
+    this.terrain3DPass = new Terrain3DPass(
+      gl,
+      mapW,
+      mapH,
+      this.heightField,
+      this.settings.view3d,
     );
 
     // --- Terrain bytes R8UI texture (shared by map-layer passes) ---
@@ -579,6 +638,13 @@ export class GPURenderer {
       this.settings,
       config,
     );
+    this.nukeFlightPass = new NukeFlightPass(
+      gl,
+      header.mapWidth,
+      this.paletteTex,
+      this.settings,
+      config,
+    );
     this.namePass = new NamePass(
       gl,
       header,
@@ -624,6 +690,7 @@ export class GPURenderer {
     );
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.sceneTarget = { fbo: sceneFbo, tex: sceneTex, w: 1, h: 1 };
+    this.mapTarget = createRenderTarget(gl, 1, 1);
 
     // --- Alt-view passes ---
     this.affiliationPalette = new AffiliationPalette(gl, this.settings);
@@ -909,6 +976,7 @@ export class GPURenderer {
     this.frameTick++;
     this.unitPass.setFrameTick(this.frameTick);
     this.unitPass.updateUnits(units, gameTick);
+    this.nukeFlightPass.updateUnits(units);
     this.samRadiusPass.setTick(gameTick);
     this.barPass.updateBars(units, this.lastStructures, gameTick);
     this.pointLightPass.updateLights(units);
@@ -988,6 +1056,14 @@ export class GPURenderer {
     if (rects.length === 0) return;
     this.terrainPass.applyTerrainRects(rects, bytes);
     this.railroadPass.applyTerrainRects(rects, bytes);
+    {
+      let off = 0;
+      for (const r of rects) {
+        this.heightField.applyRect(r.x, r.y, r.w, r.h, bytes, off);
+        this.terrain3DPass.updateHeights(this.heightField, r.x, r.y, r.w, r.h);
+        off += r.w * r.h;
+      }
+    }
     // Update the shared R8UI terrain-bytes texture used by map-layer passes.
     if (!this.terrainBytesTex) return;
     const gl = this.gl;
@@ -1158,6 +1234,7 @@ export class GPURenderer {
     this.territoryPass.setAltView(active);
     this.borderStampPass.setAltView(active);
     this.unitPass.setAltView(active);
+    this.nukeFlightPass.setAltView(active);
     this.structurePass.setAltView(active);
     this.trailPass.setAltView(active);
   }
@@ -1173,6 +1250,11 @@ export class GPURenderer {
 
   getSettings(): RenderSettings {
     return this.settings;
+  }
+
+  /** Terrain elevation used by the 3D view (shared with input picking). */
+  getHeightField(): HeightField {
+    return this.heightField;
   }
 
   // ---------------------------------------------------------------------------
@@ -1289,8 +1371,89 @@ export class GPURenderer {
   }
 
   private renderFrame(): void {
-    const cam = this.camera.getMatrix();
-    const zoom = this.camera.zoom;
+    if (this.settings.view3d.enabled) {
+      this.renderFrame3D();
+      return;
+    }
+    if (this.billboardsOn) {
+      this.billboardsOn = false;
+      applyBillboardState(this.gl, BILLBOARDS_OFF, null);
+    }
+    this.renderFrame2D(this.camera.getMatrix(), this.camera.zoom);
+  }
+
+  /**
+   * Tilted 3D view: draw the whole flat map (every pass, unchanged) into an
+   * offscreen image with a 2D camera that covers everything the 3D camera
+   * can see, then drape that image over the terrain mesh.
+   */
+  private renderFrame3D(): void {
+    const gl = this.gl;
+    const cw = this.canvas.width;
+    const ch = this.canvas.height;
+    const v3 = this.settings.view3d;
+    const view = buildView3D({
+      centerX: this.camera.offsetX,
+      centerY: this.camera.offsetY,
+      zoom: this.camera.zoom,
+      viewW: cw,
+      viewH: ch,
+      pitchDeg: v3.pitch,
+      fovDeg: v3.fov,
+    });
+    const ortho = fitOrtho(groundFootprint(view, v3.heightScale), cw, ch);
+    orthoMatrix(ortho.centerX, ortho.centerY, ortho.zoom, cw, ch, this.imgCam);
+
+    resizeRenderTarget(gl, this.mapTarget, cw, ch);
+    this.virtualDefaultFbo = this.mapTarget.fbo;
+    try {
+      this.renderFrame2D(this.imgCam, ortho.zoom, false);
+    } finally {
+      this.virtualDefaultFbo = null;
+    }
+
+    const bg = hexToRgb(this.settings.terrain.backgroundColor) ?? [60, 60, 60];
+    const bgf: [number, number, number] = [
+      bg[0] / 255,
+      bg[1] / 255,
+      bg[2] / 255,
+    ];
+    this.rawBindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, cw, ch);
+    gl.clearColor(bgf[0], bgf[1], bgf[2], 1);
+    gl.clearDepth(1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.terrain3DPass.draw(view, this.imgCam, this.mapTarget.tex, bgf);
+
+    this.billboardsOn = true;
+    applyBillboardState(
+      gl,
+      {
+        enabled: true,
+        viewProj: view.viewProj,
+        heightScale: v3.heightScale,
+        centerDepth: view.eye[2] / Math.max(1e-6, -view.fwd[2]),
+        mapW: this.mapW,
+        mapH: this.mapH,
+      },
+      this.terrain3DPass.heightTexture(),
+    );
+    orthoMatrix(
+      this.camera.offsetX,
+      this.camera.offsetY,
+      this.camera.zoom,
+      cw,
+      ch,
+      this.bbCam,
+    );
+    this.renderBillboards(this.bbCam, this.camera.zoom);
+  }
+
+  private renderFrame2D(
+    cam: Float32Array,
+    zoom: number,
+    includeBillboards = true,
+  ): void {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
     const compositingActive = this.isLightCompositingActive();
@@ -1308,7 +1471,7 @@ export class GPURenderer {
       toScreen(this.gl, cw, ch, () => this.drawBaseLayer(cam));
     }
 
-    this.renderOverlays(cam, zoom);
+    this.renderOverlays(cam, zoom, includeBillboards);
   }
 
   private isLightCompositingActive(): boolean {
@@ -1355,9 +1518,17 @@ export class GPURenderer {
     if (pe.territory) this.territoryPass.draw(cam);
   }
 
-  private renderOverlays(cam: Float32Array, zoom: number): void {
+  private renderOverlays(
+    cam: Float32Array,
+    zoom: number,
+    includeBillboards = true,
+  ): void {
     const gl = this.gl;
     const pe = this.settings.passEnabled;
+    // In the 3D view the billboarded overlays (unit sprites, structure icons,
+    // levels, bars, names, world text) are drawn upright after the terrain
+    // mesh instead (renderBillboards), not painted into the flat map image.
+    const bb = includeBillboards;
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -1365,17 +1536,17 @@ export class GPURenderer {
     this.spawnOverlayPass.draw(cam);
     if (pe.borderStamp) this.borderStampPass.draw(cam);
     if (pe.railroad) this.railroadPass.draw(cam, zoom);
-    if (pe.unit) this.unitPass.drawGround(cam);
+    if (pe.unit && bb) this.unitPass.drawGround(cam);
     if (pe.falloutBloom) this.bloomPass.draw(cam, this.frameTick);
     this.samRadiusPass.draw(cam);
     this.rangeCirclePass.draw(cam);
     this.nukeTrajectoryPass.draw(cam);
     this.crosshairPass.draw(cam);
-    if (pe.structure) this.structurePass.draw(cam, zoom);
-    if (pe.structure) this.structureLevelPass.draw(cam, zoom);
+    if (pe.structure && bb) this.structurePass.draw(cam, zoom);
+    if (pe.structure && bb) this.structureLevelPass.draw(cam, zoom);
     // Small-player glow draws after structures so buildings can't hide it.
     this.smallPlayerGlowPass.draw(cam);
-    if (pe.bar) this.barPass.draw(cam);
+    if (pe.bar && bb) this.barPass.draw(cam);
     this.updateSelectionBox();
     this.selectionBoxPass.draw(cam, this.frameTick);
     this.moveIndicatorPass.draw(cam, zoom);
@@ -1384,7 +1555,11 @@ export class GPURenderer {
     // Spiral vortexes sit above the plain trails, below the missiles that
     // trail them. Skipped in alt view — the strategic overlay stays effects-free.
     if (!this.altView) this.spiralRibbonPass.draw(cam);
-    if (pe.unit) this.unitPass.drawMissiles(cam);
+    if (pe.unit) {
+      this.unitPass.setHideNukes(this.nukeFlightPass.isActive());
+      if (bb) this.unitPass.drawMissiles(cam);
+      this.nukeFlightPass.draw(cam, zoom);
+    }
 
     if (pe.fx) {
       this.fxPass.tick();
@@ -1394,14 +1569,38 @@ export class GPURenderer {
     // Grid shows on either trigger; names hide only under alt-view (space
     // hold), not under the persistent M-key gridView toggle.
     if (this.gridView || this.altView) this.coordinateGridPass.draw(cam, zoom);
-    if (pe.name && !this.altView)
+    if (bb) this.drawNamesAndText(cam, zoom);
+
+    gl.disable(gl.BLEND);
+  }
+
+  private drawNamesAndText(cam: Float32Array, zoom: number): void {
+    if (this.settings.passEnabled.name && !this.altView)
       this.namePass.draw(cam, this.nightCompositePass.getAmbient());
 
     // World text (attack-troop labels, popups, ghost cost) draws on top of
     // player names so attack callouts aren't hidden behind a centered name.
     this.worldTextPass.tick(zoom);
     this.worldTextPass.draw(cam, zoom);
+  }
 
+  /**
+   * 3D view: unit sprites, structure icons and levels, bars, names and world
+   * text, drawn upright over the terrain mesh (see view3d/Billboard.ts).
+   * `cam` is a top-down camera at the true zoom around the look-at point;
+   * the billboard projection anchors each overlay on the 3D terrain.
+   */
+  private renderBillboards(cam: Float32Array, zoom: number): void {
+    const gl = this.gl;
+    const pe = this.settings.passEnabled;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    if (pe.unit) this.unitPass.drawGround(cam);
+    if (pe.structure) this.structurePass.draw(cam, zoom);
+    if (pe.structure) this.structureLevelPass.draw(cam, zoom);
+    if (pe.bar) this.barPass.draw(cam);
+    if (pe.unit) this.unitPass.drawMissiles(cam);
+    this.drawNamesAndText(cam, zoom);
     gl.disable(gl.BLEND);
   }
 
@@ -1488,6 +1687,9 @@ export class GPURenderer {
       this.terrainBytesTex = null;
     }
     this.terrainPass.dispose();
+    this.terrain3DPass.dispose();
+    this.gl.deleteFramebuffer(this.mapTarget.fbo);
+    this.gl.deleteTexture(this.mapTarget.tex);
     this.territoryPass.dispose();
     this.trailPass.dispose();
     this.spiralRibbonPass.dispose();
@@ -1511,6 +1713,7 @@ export class GPURenderer {
     this.structurePass.dispose();
     this.structureLevelPass.dispose();
     this.unitPass.dispose();
+    this.nukeFlightPass.dispose();
     this.namePass.dispose();
     this.fxPass.dispose();
     this.worldTextPass.dispose();

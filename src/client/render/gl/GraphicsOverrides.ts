@@ -109,6 +109,26 @@ export const GraphicsOverridesSchema = z
         plainsColor: z.string(),
         highlandColor: z.string(),
         mountainColor: z.string(),
+        // Enhanced terrain shading: hillshade relief, animated water and
+        // shoreline foam. Disable for the flat classic look.
+        enhanced: z.boolean(),
+      })
+      .partial(),
+    units: z
+      .object({
+        // Procedural nukes in flight, fireball detonations and outlined
+        // ships/trains. Disable for the classic sprites.
+        enhanced: z.boolean(),
+      })
+      .partial(),
+    view3d: z
+      .object({
+        // Tilted 3D map view; false = the classic flat top-down map.
+        enabled: z.boolean(),
+        // Camera tilt from straight down, degrees.
+        pitch: z.number(),
+        // Height of the highest mountains, in tiles.
+        heightScale: z.number(),
       })
       .partial(),
     lighting: z

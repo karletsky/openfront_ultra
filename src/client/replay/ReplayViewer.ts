@@ -104,6 +104,9 @@ const WHEEL_ZOOM = 1.0015;
 function renderSettings(userSettings: UserSettings) {
   const settings = createRenderSettings();
   applyGraphicsOverrides(settings, userSettings.graphicsOverrides());
+  // The replay viewer's camera and picking (ReplayCamera) are flat 2D;
+  // keep replays on the top-down map until they learn the 3D projection.
+  settings.view3d.enabled = false;
   return settings;
 }
 

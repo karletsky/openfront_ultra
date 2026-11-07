@@ -162,6 +162,14 @@ const LAYER_ALPHA_STEP = 0.01;
 
 // Small-player glow strength is shown as a percentage: 0% = off, 100% = the
 // glow's full brightness.
+const VIEW3D_PITCH_MIN = 0;
+const VIEW3D_PITCH_MAX = 60;
+const VIEW3D_PITCH_STEP = 1;
+
+const VIEW3D_HEIGHT_MIN = 0;
+const VIEW3D_HEIGHT_MAX = 80;
+const VIEW3D_HEIGHT_STEP = 1;
+
 const GLOW_STRENGTH_MIN = 0;
 const GLOW_STRENGTH_MAX = 100;
 const GLOW_STRENGTH_STEP = 5;
@@ -737,6 +745,65 @@ export class GraphicsAdvancedSettings extends LitElement {
 
   // ---- Terrain colors ----
 
+  // ---- 3D view ----
+
+  private patchView3d(patch: Partial<GraphicsOverrides["view3d"]>) {
+    const current = this.userSettings.graphicsOverrides();
+    this.writeOverrides({
+      ...current,
+      view3d: { ...current.view3d, ...patch },
+    });
+    this.requestUpdate();
+  }
+
+  private currentView3dEnabled(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().view3d?.enabled ??
+      renderDefaults.view3d.enabled
+    );
+  }
+
+  private onToggleView3d() {
+    this.patchView3d({ enabled: !this.currentView3dEnabled() });
+  }
+
+  private currentView3dPitch(): number {
+    return (
+      this.userSettings.graphicsOverrides().view3d?.pitch ??
+      renderDefaults.view3d.pitch
+    );
+  }
+
+  private onView3dPitchChange(event: Event) {
+    const value = sliderValue(event);
+    if (value === null) return;
+    this.patchView3d({ pitch: value });
+  }
+
+  private currentView3dHeight(): number {
+    return (
+      this.userSettings.graphicsOverrides().view3d?.heightScale ??
+      renderDefaults.view3d.heightScale
+    );
+  }
+
+  private onView3dHeightChange(event: Event) {
+    const value = sliderValue(event);
+    if (value === null) return;
+    this.patchView3d({ heightScale: value });
+  }
+
+  private currentEnhancedTerrain(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().terrain?.enhanced ??
+      renderDefaults.terrain.enhanced
+    );
+  }
+
+  private onToggleEnhancedTerrain() {
+    this.patchTerrain({ enhanced: !this.currentEnhancedTerrain() });
+  }
+
   private currentBackgroundColor(): string {
     return (
       this.userSettings.graphicsOverrides().terrain?.backgroundColor ??
@@ -848,6 +915,22 @@ export class GraphicsAdvancedSettings extends LitElement {
 
   private onToggleSpecialEffects() {
     this.patchPassEnabled({ fx: !this.currentSpecialEffects() });
+  }
+
+  private currentEnhancedUnits(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().units?.enhanced ??
+      renderDefaults.unit.enhancedNukes
+    );
+  }
+
+  private onToggleEnhancedUnits() {
+    const current = this.userSettings.graphicsOverrides();
+    this.writeOverrides({
+      ...current,
+      units: { ...current.units, enhanced: !this.currentEnhancedUnits() },
+    });
+    this.requestUpdate();
   }
 
   private currentFallout(): boolean {
@@ -1330,6 +1413,44 @@ export class GraphicsAdvancedSettings extends LitElement {
 
       <!-- ⛰️ Terrain -->
       ${GraphicsAdvancedSettings.section("graphics_setting.section_terrain")}
+      <setting-toggle
+        label=${translateText("graphics_setting.view3d_label")}
+        description=${translateText("graphics_setting.view3d_desc")}
+        id="view3d-toggle"
+        .checked=${this.currentView3dEnabled()}
+        @change=${this.onToggleView3d}
+      ></setting-toggle>
+
+      <setting-slider
+        label=${translateText("graphics_setting.view3d_pitch_label")}
+        description=${translateText("graphics_setting.view3d_pitch_desc")}
+        id="view3d-pitch-slider"
+        min=${VIEW3D_PITCH_MIN}
+        max=${VIEW3D_PITCH_MAX}
+        step=${VIEW3D_PITCH_STEP}
+        .value=${this.currentView3dPitch()}
+        @change=${this.onView3dPitchChange}
+      ></setting-slider>
+
+      <setting-slider
+        label=${translateText("graphics_setting.view3d_height_label")}
+        description=${translateText("graphics_setting.view3d_height_desc")}
+        id="view3d-height-slider"
+        min=${VIEW3D_HEIGHT_MIN}
+        max=${VIEW3D_HEIGHT_MAX}
+        step=${VIEW3D_HEIGHT_STEP}
+        .value=${this.currentView3dHeight()}
+        @change=${this.onView3dHeightChange}
+      ></setting-slider>
+
+      <setting-toggle
+        label=${translateText("graphics_setting.enhanced_terrain_label")}
+        description=${translateText("graphics_setting.enhanced_terrain_desc")}
+        id="enhanced-terrain-toggle"
+        .checked=${this.currentEnhancedTerrain()}
+        @change=${this.onToggleEnhancedTerrain}
+      ></setting-toggle>
+
       <setting-color
         label=${translateText("graphics_setting.background_color_label")}
         description=${translateText("graphics_setting.background_color_desc")}
@@ -1394,6 +1515,14 @@ export class GraphicsAdvancedSettings extends LitElement {
         id="special-effects-toggle"
         .checked=${this.currentSpecialEffects()}
         @change=${this.onToggleSpecialEffects}
+      ></setting-toggle>
+
+      <setting-toggle
+        label=${translateText("graphics_setting.enhanced_units_label")}
+        description=${translateText("graphics_setting.enhanced_units_desc")}
+        id="enhanced-units-toggle"
+        .checked=${this.currentEnhancedUnits()}
+        @change=${this.onToggleEnhancedUnits}
       ></setting-toggle>
 
       <setting-toggle

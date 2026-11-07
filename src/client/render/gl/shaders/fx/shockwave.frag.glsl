@@ -7,7 +7,7 @@ uniform float uTime;      // seconds — animates procedural styles
 in vec2  vLocalPos;
 flat in float vAlpha;   // 1 - lifetime progress (fades out over the effect)
 flat in float vLife;    // lifetime fade with hoisted flicker
-flat in float vStyle;   // 0 = classic ring, 1 = EMP pulse, 2 = sparkles, 3 = embers
+flat in float vStyle;   // 0 = classic ring, 1 = EMP pulse, 2 = sparkles, 3 = embers, 4 = fireball
 flat in vec3  vColor0;  // cosmetic: palette color 0
 flat in vec3  vColor1;  // cosmetic: palette color 1
 flat in vec3  vColor2;  // cosmetic: palette color 2 (pads repeat the last color)
@@ -41,6 +41,22 @@ float vnoise(float x) {
   float f = fract(x);
   float u = f * f * (3.0 - 2.0 * f);
   return mix(hash11(i), hash11(i + 1.0), u);
+}
+
+float hash21(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float vnoise2(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),
+    mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x),
+    u.y
+  );
 }
 
 // Classic expanding white ring (SAM, and nuke style 0).
@@ -225,9 +241,66 @@ void emberScatter() {
   fragColor = vec4(col, a);
 }
 
+// Default nuke detonation (style 4, no cosmetic): a white-hot flash, then a
+// turbulent fireball that cools from white through yellow and orange to dark
+// smoke while a warm shock ring races ahead of it. Coordinates are
+// normalized to the shock front (dist 1.0 = front).
+void fireball(float dist) {
+  float lifeT = 1.0 - vAlpha; // 0 at detonation → 1 at the end
+  float ang = atan(vLocalPos.y, vLocalPos.x);
+  vec4 acc = vec4(0.0);
+
+  // Fireball: fills most of the front early, then lags behind it. Billowing
+  // comes from 2D noise in the blast's own space (drifting slowly outward),
+  // so it reads as rolling clouds rather than radial streaks.
+  float fr = mix(0.92, 0.38, smoothstep(0.0, 0.7, lifeT));
+  vec2 q = vLocalPos / max(fr, 0.05);
+  float drift = uTime * 0.6;
+  float n1 = vnoise2(q * 2.3 + vec2(drift, -drift * 0.7));
+  float n2 = vnoise2(q * 5.1 - vec2(drift * 1.3, drift));
+  float turb = n1 * 0.65 + n2 * 0.35;
+  float edge = fr * (0.82 + 0.3 * turb);
+  if (dist < edge * 1.15) {
+    float rn = dist / edge; // 0 center → 1 fireball edge
+    float temp = (1.0 - rn * 0.8) + (turb - 0.5) * 0.45 - lifeT * 1.15;
+    vec3 c;
+    if (temp > 0.75) c = mix(vec3(1.0, 0.9, 0.55), vec3(1.0, 1.0, 0.95), (temp - 0.75) / 0.25);
+    else if (temp > 0.45) c = mix(vec3(1.0, 0.55, 0.12), vec3(1.0, 0.9, 0.55), (temp - 0.45) / 0.3);
+    else if (temp > 0.15) c = mix(vec3(0.7, 0.16, 0.06), vec3(1.0, 0.55, 0.12), (temp - 0.15) / 0.3);
+    else c = mix(vec3(0.16, 0.14, 0.14), vec3(0.7, 0.16, 0.06), clamp(temp / 0.15, 0.0, 1.0));
+    // Cloud shading: lit from the upper left.
+    c *= 0.85 + 0.3 * (vnoise2(q * 2.3 + vec2(drift, -drift * 0.7) - vec2(0.15)) - n1 + 0.5);
+    float body = 1.0 - smoothstep(0.85, 1.15, rn);
+    // Smoke thins out at the end of the effect.
+    float a = body * mix(0.95, 0.55, smoothstep(0.4, 1.0, lifeT)) * smoothstep(0.0, 0.25, vAlpha);
+    acc = vec4(c, a);
+  }
+
+  // Shock ring: warm, slightly ragged, with a faint heat band behind it.
+  float ringR = 1.0 + (vnoise(ang * 11.0 + uTime * 4.0) - 0.5) * 0.04;
+  float rd = dist - ringR;
+  float ring = 1.0 - smoothstep(0.0, uRingWidth * 1.4, abs(rd));
+  float wake = (1.0 - smoothstep(0.0, 0.22, -rd)) * step(rd, 0.0) * 0.18;
+  vec3 ringCol = mix(vec3(1.0, 0.8, 0.55), vec3(1.0), 0.5);
+  float ra = clamp(ring * 0.9 + wake, 0.0, 1.0) * vAlpha;
+  acc = vec4(mix(acc.rgb, ringCol, ra), ra + acc.a * (1.0 - ra));
+
+  // Initial flash: everything inside the front goes white-hot, briefly.
+  float flash = 1.0 - smoothstep(0.0, 0.1, lifeT);
+  if (flash > 0.0 && dist < 1.25) {
+    float f = flash * (1.0 - smoothstep(0.6, 1.25, dist));
+    acc = vec4(mix(acc.rgb, vec3(1.0, 1.0, 0.96), f), f + acc.a * (1.0 - f));
+  }
+
+  if (acc.a < 0.01) discard;
+  fragColor = acc;
+}
+
 void main() {
   float dist = length(vLocalPos);
-  if (vStyle > 2.5) {
+  if (vStyle > 3.5) {
+    fireball(dist);
+  } else if (vStyle > 2.5) {
     emberScatter();
   } else if (vStyle > 1.5) {
     sparkles();

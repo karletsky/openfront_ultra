@@ -1,8 +1,8 @@
 /**
  * GPU-ready color utilities.
  *
- * Terrain RGBA: Uint8Array(w × h × 4) — one RGBA pixel per tile, computed
- * from the terrain color rules applied to the raw terrain byte layout.
+ * Terrain RGBA: Uint8Array(w × h × 4) — one RGBA pixel per tile: RGB is the
+ * color from the terrain color rules, A is the raw terrain byte.
  *
  * Player palette is NOT built here — consumers provide a pre-built
  * Float32Array(PALETTE_SIZE × 2 × 4) to the GPURenderer constructor.
@@ -180,7 +180,10 @@ export function encodeTerrainTile(
   out[offset] = r;
   out[offset + 1] = g;
   out[offset + 2] = b;
-  out[offset + 3] = 255;
+  // Alpha carries the raw terrain byte so the terrain shader can derive
+  // elevation (relief shading), water depth and shoreline (foam) per tile.
+  // The terrain pass always writes an opaque alpha to the framebuffer.
+  out[offset + 3] = tb & 0xff;
 }
 
 export function buildTerrainRGBA(

@@ -22,7 +22,19 @@
     "sandColor": "#CCCB9E",
     "plainsColor": "#BEDC8A",
     "highlandColor": "#DCCB9E",
-    "mountainColor": "#e6e6e6"
+    "mountainColor": "#e6e6e6",
+    "enhanced": true,
+    "reliefStrength": 0.6,
+    "waterStrength": 1,
+    "foamStrength": 0.6
+  },
+  "view3d": {
+    "enabled": true,
+    "pitch": 40,
+    "fov": 35,
+    "heightScale": 30,
+    "lightStrength": 0.6,
+    "haze": 0.25
   },
   "falloutBloom": {
     "broilSpeedCold": 0.0018,
@@ -213,7 +225,14 @@
     "hBombGlowB": 0.15,
     "hBombGlowStrength": 0.5,
     "hBombGlowInner": 0.45,
-    "untargetableAlpha": 0.6
+    "untargetableAlpha": 0.6,
+    "shipOutline": true,
+    "enhancedNukes": true,
+    "nukeSizeScale": 1.4,
+    "nukeMinLengthPx": 30,
+    "nukeShadowHeight": 0.5,
+    "nukeGlowStrength": 0.7,
+    "nukePlumeLength": 1.1
   },
   "name": {
     "lerpSpeed": 10,
@@ -241,6 +260,7 @@
     "shockwaveRingWidth": 0.04,
     "attackRingScreenPx": 30,
     "nukeShockwaveDurationMs": 1500,
+    "enhancedNukeExplosion": true,
     "nukeShockwaveRadiusFactor": 1.5,
     "samShockwaveDurationMs": 800,
     "samShockwaveRadius": 40,

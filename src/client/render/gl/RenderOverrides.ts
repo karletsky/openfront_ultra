@@ -167,6 +167,24 @@ export function applyGraphicsOverrides(
   if (overrides.terrain?.mountainColor !== undefined) {
     settings.terrain.mountainColor = overrides.terrain.mountainColor;
   }
+  if (overrides.units?.enhanced !== undefined) {
+    // One user-facing toggle for all unit graphics upgrades.
+    settings.unit.enhancedNukes = overrides.units.enhanced;
+    settings.unit.shipOutline = overrides.units.enhanced;
+    settings.fx.enhancedNukeExplosion = overrides.units.enhanced;
+  }
+  if (overrides.view3d?.enabled !== undefined) {
+    settings.view3d.enabled = overrides.view3d.enabled;
+  }
+  if (overrides.view3d?.pitch !== undefined) {
+    settings.view3d.pitch = overrides.view3d.pitch;
+  }
+  if (overrides.view3d?.heightScale !== undefined) {
+    settings.view3d.heightScale = overrides.view3d.heightScale;
+  }
+  if (overrides.terrain?.enhanced !== undefined) {
+    settings.terrain.enhanced = overrides.terrain.enhanced;
+  }
   if (overrides.lighting?.ambient !== undefined) {
     settings.lighting.ambient = overrides.lighting.ambient;
     // The composite only darkens the scene (and reveals the structure/unit

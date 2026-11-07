@@ -79,6 +79,35 @@ export interface RenderSettings {
     plainsColor: string;
     highlandColor: string;
     mountainColor: string;
+    /**
+     * Enhanced terrain shading: smooth hillshade relief on land, depth
+     * shading and animated shimmer on water, and pulsing shoreline foam.
+     * false = the flat baked colors.
+     */
+    enhanced: boolean;
+    /** Hillshade strength on land (0 = flat). */
+    reliefStrength: number;
+    /** Water depth shading + shimmer strength (0 = flat). */
+    waterStrength: number;
+    /** Shoreline foam strength (0 = none). */
+    foamStrength: number;
+  };
+  /**
+   * Tilted 3D view: the flat map is draped over a terrain mesh and seen
+   * through a perspective camera (see GPURenderer.renderFrame3D).
+   */
+  view3d: {
+    enabled: boolean;
+    /** Camera tilt from straight down, degrees (0-60). */
+    pitch: number;
+    /** Vertical field of view, degrees. */
+    fov: number;
+    /** Height of the highest mountains, in tiles. */
+    heightScale: number;
+    /** Directional lighting on slopes (0 = none). */
+    lightStrength: number;
+    /** Distance haze toward the far edge (0 = none). */
+    haze: number;
   };
   falloutBloom: {
     broilSpeedCold: number;
@@ -272,6 +301,18 @@ export interface RenderSettings {
     hBombGlowStrength: number; // peak opacity of the glow
     hBombGlowInner: number; // radial falloff start (0..1, quad-space)
     untargetableAlpha: number; // alpha for nukes SAMs can't target (0..1)
+    /**
+     * Draw nukes in flight as procedural missiles (NukeFlightPass) instead
+     * of the flickering sprites. Alt view always keeps the sprites.
+     */
+    enhancedNukes: boolean;
+    /** Dark outline + drop shadow on ships and trains (not in alt view). */
+    shipOutline: boolean;
+    nukeSizeScale: number; // missile length multiplier
+    nukeMinLengthPx: number; // minimum on-screen missile length, pixels
+    nukeShadowHeight: number; // ground-shadow drift at mid-flight, in missile lengths
+    nukeGlowStrength: number; // heat glow opacity (0..1)
+    nukePlumeLength: number; // exhaust plume length, in missile lengths
   };
   name: {
     lerpSpeed: number;
@@ -304,6 +345,11 @@ export interface RenderSettings {
     shockwaveRingWidth: number;
     attackRingScreenPx: number; // screen px — attack ring quad half-size (visible outer ring = 0.8×)
     nukeShockwaveDurationMs: number;
+    /**
+     * Default (no-cosmetic) nuke detonation: flash + cooling fireball + warm
+     * shock ring (shockwave style 4) instead of the plain white ring.
+     */
+    enhancedNukeExplosion: boolean;
     nukeShockwaveRadiusFactor: number;
     samShockwaveDurationMs: number;
     samShockwaveRadius: number;

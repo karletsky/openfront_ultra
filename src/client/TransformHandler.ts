@@ -6,6 +6,10 @@ import {
   ZOOM_DELTA_DIVISOR,
   ZoomEvent,
 } from "./InputHandler";
+import type {
+  ScreenCamera,
+  View3DProjector,
+} from "./render/gl/view3d/View3DProjector";
 import { GameView, PlayerView, UnitView } from "./view";
 
 export class GoToPlayerEvent implements GameEvent {
@@ -41,6 +45,9 @@ export class TransformHandler {
   private targetScale: number | null = null;
   private intervalID: NodeJS.Timeout | null = null;
   private changed = false;
+  // Tilted 3D view: when set and active, screen ↔ world conversions go
+  // through the same perspective projection the renderer draws with.
+  private projector: View3DProjector | null = null;
 
   constructor(
     private game: GameView,
@@ -54,6 +61,42 @@ export class TransformHandler {
     this.eventBus.on(GoToPositionEvent, (e) => this.onGoToPosition(e));
     this.eventBus.on(GoToUnitEvent, (e) => this.onGoToUnit(e));
     this.eventBus.on(CenterCameraEvent, () => this.centerCamera());
+  }
+
+  setProjector(projector: View3DProjector | null): void {
+    this.projector = projector;
+  }
+
+  /** The 3D projector when the 3D view is on, else null. */
+  private view3d(): View3DProjector | null {
+    return this.projector?.isActive() ? this.projector : null;
+  }
+
+  /** World point at the screen center (the camera's look-at point). */
+  private cameraCenter(scale = this.scale): { x: number; y: number } {
+    const { width, height } = this.boundingRect();
+    return {
+      x:
+        this.offsetX +
+        this.game.width() / 2 +
+        (width - this.game.width()) / (2 * scale),
+      y:
+        this.offsetY +
+        this.game.height() / 2 +
+        (height - this.game.height()) / (2 * scale),
+    };
+  }
+
+  private screenCamera(scale = this.scale): ScreenCamera {
+    const { width, height } = this.boundingRect();
+    const c = this.cameraCenter(scale);
+    return {
+      centerX: c.x,
+      centerY: c.y,
+      zoom: scale,
+      viewW: width,
+      viewH: height,
+    };
   }
 
   public updateCanvasBoundingRect() {
@@ -90,6 +133,8 @@ export class TransformHandler {
   }
 
   worldToCanvasCoordinates(cell: Cell): { x: number; y: number } {
+    const p3 = this.view3d();
+    if (p3) return p3.worldToScreen(this.screenCamera(), cell.x, cell.y);
     // Step 1: Convert from Cell coordinates to game coordinates
     // (reverse of Math.floor operation - we'll use the exact values)
     const gameX = cell.x;
@@ -130,6 +175,15 @@ export class TransformHandler {
     screenY: number,
   ): { x: number; y: number } {
     const canvasCoords = this.screenToCanvasCoordinates(screenX, screenY);
+    const p3 = this.view3d();
+    if (p3) {
+      return p3.screenToWorld(
+        this.screenCamera(),
+        canvasCoords.x,
+        canvasCoords.y,
+        true,
+      );
+    }
     const gameX =
       (canvasCoords.x - this.game.width() / 2) / this.scale +
       this.offsetX +
@@ -161,6 +215,14 @@ export class TransformHandler {
   }
 
   screenBoundingRect(): [Cell, Cell] {
+    const p3 = this.view3d();
+    if (p3) {
+      const fp = p3.footprint(this.screenCamera());
+      return [
+        new Cell(Math.floor(fp.minX), Math.floor(fp.minY)),
+        new Cell(Math.floor(fp.maxX), Math.floor(fp.maxY)),
+      ];
+    }
     const canvasRect = this.boundingRect();
     const canvasWidth = canvasRect.width;
     const canvasHeight = canvasRect.height;
@@ -196,6 +258,10 @@ export class TransformHandler {
   }
 
   screenCenter(): { screenX: number; screenY: number } {
+    if (this.view3d()) {
+      const c = this.cameraCenter();
+      return { screenX: Math.floor(c.x), screenY: Math.floor(c.y) };
+    }
     const [upperLeft, bottomRight] = this.screenBoundingRect();
     return {
       screenX: upperLeft.x + Math.floor((bottomRight.x - upperLeft.x) / 2),
@@ -309,6 +375,28 @@ export class TransformHandler {
 
     const canvasCoords = this.screenToCanvasCoordinates(event.x, event.y);
 
+    const p3 = this.view3d();
+    if (p3) {
+      // Keep the ground point under the cursor fixed while zooming.
+      const before = p3.screenToWorld(
+        this.screenCamera(oldScale),
+        canvasCoords.x,
+        canvasCoords.y,
+        false,
+      );
+      const after = p3.screenToWorld(
+        this.screenCamera(),
+        canvasCoords.x,
+        canvasCoords.y,
+        false,
+      );
+      this.offsetX += before.x - after.x;
+      this.offsetY += before.y - after.y;
+      this.clampOffsets();
+      this.changed = true;
+      return;
+    }
+
     // Calculate the world point we want to zoom towards
     const zoomPointX =
       (canvasCoords.x - this.game.width() / 2) / oldScale + this.offsetX;
@@ -362,6 +450,26 @@ export class TransformHandler {
 
   onMove(event: DragEvent) {
     this.clearTarget();
+    const p3 = this.view3d();
+    if (p3) {
+      // Drag the ground: the point under the cursor follows it, so distant
+      // (foreshortened) ground pans faster on screen, like a real camera.
+      const cam = this.screenCamera();
+      const cx = cam.viewW / 2;
+      const cy = cam.viewH / 2;
+      const a = p3.screenToWorld(cam, cx, cy, false);
+      const b = p3.screenToWorld(
+        cam,
+        cx + event.deltaX,
+        cy + event.deltaY,
+        false,
+      );
+      this.offsetX -= b.x - a.x;
+      this.offsetY -= b.y - a.y;
+      this.clampOffsets();
+      this.changed = true;
+      return;
+    }
     this.offsetX -= event.deltaX / this.scale;
     this.offsetY -= event.deltaY / this.scale;
     this.clampOffsets();
