@@ -44,7 +44,10 @@
     "cloudCover": 0.42,
     "cloudAlpha": 0.6,
     "cloudHeight": 70,
-    "cloudShadow": 0.28
+    "cloudShadow": 0.28,
+    "buildings": true,
+    "buildingsMinZoom": 1.4,
+    "buildingsScreenPx": 52
   },
   "falloutBloom": {
     "broilSpeedCold": 0.0018,

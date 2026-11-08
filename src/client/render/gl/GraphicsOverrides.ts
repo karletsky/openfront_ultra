@@ -137,6 +137,8 @@ export const GraphicsOverridesSchema = z
         heightScale: z.number(),
         // Drifting clouds with ground shadows (fade out when zoomed in).
         clouds: z.boolean(),
+        // Structures as 3D models instead of icons when zoomed in.
+        buildings: z.boolean(),
       })
       .partial(),
     lighting: z

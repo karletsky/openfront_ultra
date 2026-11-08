@@ -126,6 +126,12 @@ export interface RenderSettings {
     cloudHeight: number;
     /** How much clouds darken the ground below them, 0..1. */
     cloudShadow: number;
+    /** Structures as 3D models (Building3DPass) instead of flat icons. */
+    buildings: boolean;
+    /** Models only from this zoom (CSS px per tile); icons below it. */
+    buildingsMinZoom: number;
+    /** Model footprint on screen at the look-at point, CSS px. */
+    buildingsScreenPx: number;
   };
   falloutBloom: {
     broilSpeedCold: number;

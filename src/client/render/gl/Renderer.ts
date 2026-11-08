@@ -35,6 +35,7 @@ import { AtmospherePass } from "./passes/AtmospherePass";
 import { BarPass } from "./passes/BarPass";
 import { BorderComputePass } from "./passes/BorderComputePass";
 import { BorderStampPass } from "./passes/BorderStampPass";
+import { Building3DPass } from "./passes/Building3DPass";
 import { CoordinateGridPass } from "./passes/CoordinateGridPass";
 import { CrosshairPass } from "./passes/CrosshairPass";
 import { DefenseCoveragePass } from "./passes/DefenseCoveragePass";
@@ -146,6 +147,9 @@ export class GPURenderer {
   private heightField: HeightField;
   private terrain3DPass: Terrain3DPass;
   private atmospherePass: AtmospherePass;
+  private building3DPass: Building3DPass;
+  /** This frame draws structures as 3D models (their icons are hidden). */
+  private buildingsShown = false;
   /** Offscreen image the flat map is drawn into while the 3D view is on. */
   private mapTarget: RenderTarget;
   /** 3D view: the glowing effects drawn in map-image space (draped later). */
@@ -650,6 +654,13 @@ export class GPURenderer {
       this.settings,
       config,
     );
+    this.building3DPass = new Building3DPass(
+      gl,
+      header.mapWidth,
+      header.mapHeight,
+      this.paletteTex,
+      this.settings.view3d,
+    );
     this.nukeFlightPass = new NukeFlightPass(
       gl,
       header.mapWidth,
@@ -995,6 +1006,7 @@ export class GPURenderer {
     this.unitPass.setFrameTick(this.frameTick);
     this.unitPass.updateUnits(units, gameTick);
     this.structurePass.setGameTick(gameTick);
+    this.building3DPass.setGameTick(gameTick);
     this.nukeFlightPass.updateUnits(units);
     this.samRadiusPass.setTick(gameTick);
     this.barPass.updateBars(units, this.lastStructures, gameTick);
@@ -1038,6 +1050,7 @@ export class GPURenderer {
   updateStructures(units: Map<number, UnitState>): void {
     this.lastStructures = units;
     this.structurePass.updateStructures(units);
+    this.building3DPass.updateStructures(units);
     this.structureLevelPass.updateStructures(units);
     this.samRadiusPass.updateStructures(units);
     this.unitPass.setStructures(units);
@@ -1465,6 +1478,18 @@ export class GPURenderer {
     this.atmospherePass.drawSky(bgf);
     this.terrain3DPass.draw(view, this.imgCam, this.mapTarget.tex, bgf);
     // Above the terrain, below icons and names.
+    // Structures as 3D models when zoomed in enough (icons otherwise).
+    this.buildingsShown =
+      !this.altView &&
+      this.settings.passEnabled.structure &&
+      this.building3DPass.visibleAt(this.camera.zoom / renderDpr());
+    if (this.buildingsShown) {
+      this.building3DPass.draw(
+        view,
+        this.camera.zoom / renderDpr(),
+        this.terrain3DPass.heightTexture(),
+      );
+    }
     this.atmospherePass.drawClouds(view);
 
     // Glow: the emissive effects in image space, draped like the map.
@@ -1668,7 +1693,9 @@ export class GPURenderer {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     if (pe.unit) this.unitPass.drawGround(cam);
-    if (pe.structure) this.structurePass.draw(cam, zoom);
+    if (pe.structure && !this.buildingsShown) {
+      this.structurePass.draw(cam, zoom);
+    }
     if (pe.structure) this.structureLevelPass.draw(cam, zoom);
     if (pe.bar) this.barPass.draw(cam);
     if (pe.unit) this.unitPass.drawMissiles(cam);
@@ -1762,6 +1789,7 @@ export class GPURenderer {
     this.terrainPass.dispose();
     this.terrain3DPass.dispose();
     this.atmospherePass.dispose();
+    this.building3DPass.dispose();
     this.glowPass.dispose();
     this.gl.deleteFramebuffer(this.emissiveImage.fbo);
     this.gl.deleteTexture(this.emissiveImage.tex);

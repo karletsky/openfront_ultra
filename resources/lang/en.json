@@ -1237,6 +1237,8 @@
     "territory_alpha_label": "Territory opacity",
     "territory_sat_desc": "How vivid the territory fill colors are (lower mutes them)",
     "territory_sat_label": "Territory saturation",
+    "view3d_buildings_desc": "Show cities, factories, ports, silos, SAMs and defense posts as 3D models in the 3D view when zoomed in",
+    "view3d_buildings_label": "3D buildings",
     "view3d_clouds_desc": "Drifting clouds that cast shadows on the map in the 3D view. They fade out when you zoom in",
     "view3d_clouds_label": "3D clouds",
     "view3d_desc": "Show the map in 3D: a tilted camera with raised mountains and hills. Disable for the classic flat top-down map",
