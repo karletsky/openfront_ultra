@@ -46,6 +46,7 @@ import { PlayerPanel } from "./layers/PlayerPanel";
 import { ReplayPanel } from "./layers/ReplayPanel";
 import { SettingsModal } from "./layers/SettingsModal";
 import { SpawnTimer } from "./layers/SpawnTimer";
+import { TechTreePanel } from "./layers/TechTreePanel";
 import { TutorialPanel } from "./layers/TutorialPanel";
 import { UnitDisplay } from "./layers/UnitDisplay";
 import { WinModal } from "./layers/WinModal";
@@ -288,6 +289,13 @@ export function createRenderer(
   }
   alertFrame.game = game;
 
+  // Optional: only advanced warfare games use it.
+  const techTreePanel = document.querySelector("tech-tree-panel");
+  if (techTreePanel instanceof TechTreePanel) {
+    techTreePanel.game = game;
+    techTreePanel.eventBus = eventBus;
+  }
+
   const spawnTimer = document.querySelector("spawn-timer") as SpawnTimer;
   if (!(spawnTimer instanceof SpawnTimer)) {
     console.error("spawn timer not found");
@@ -366,6 +374,7 @@ export function createRenderer(
       playerPanel,
     ),
     spawnTimer,
+    ...(techTreePanel instanceof TechTreePanel ? [techTreePanel] : []),
     immunityTimer,
     gameLeftSidebar,
     unitDisplay,

@@ -767,6 +767,28 @@ export class GraphicsAdvancedSettings extends LitElement {
     this.patchView3d({ enabled: !this.currentView3dEnabled() });
   }
 
+  private currentView3dBuildings(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().view3d?.buildings ??
+      renderDefaults.view3d.buildings
+    );
+  }
+
+  private onToggleView3dBuildings() {
+    this.patchView3d({ buildings: !this.currentView3dBuildings() });
+  }
+
+  private currentView3dClouds(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().view3d?.clouds ??
+      renderDefaults.view3d.clouds
+    );
+  }
+
+  private onToggleView3dClouds() {
+    this.patchView3d({ clouds: !this.currentView3dClouds() });
+  }
+
   private currentView3dPitch(): number {
     return (
       this.userSettings.graphicsOverrides().view3d?.pitch ??
@@ -915,6 +937,22 @@ export class GraphicsAdvancedSettings extends LitElement {
 
   private onToggleSpecialEffects() {
     this.patchPassEnabled({ fx: !this.currentSpecialEffects() });
+  }
+
+  private currentGlow(): boolean {
+    return (
+      this.userSettings.graphicsOverrides().glow?.enabled ??
+      renderDefaults.glow.enabled
+    );
+  }
+
+  private onToggleGlow() {
+    const current = this.userSettings.graphicsOverrides();
+    this.writeOverrides({
+      ...current,
+      glow: { ...current.glow, enabled: !this.currentGlow() },
+    });
+    this.requestUpdate();
   }
 
   private currentEnhancedUnits(): boolean {
@@ -1421,6 +1459,22 @@ export class GraphicsAdvancedSettings extends LitElement {
         @change=${this.onToggleView3d}
       ></setting-toggle>
 
+      <setting-toggle
+        label=${translateText("graphics_setting.view3d_buildings_label")}
+        description=${translateText("graphics_setting.view3d_buildings_desc")}
+        id="view3d-buildings-toggle"
+        .checked=${this.currentView3dBuildings()}
+        @change=${this.onToggleView3dBuildings}
+      ></setting-toggle>
+
+      <setting-toggle
+        label=${translateText("graphics_setting.view3d_clouds_label")}
+        description=${translateText("graphics_setting.view3d_clouds_desc")}
+        id="view3d-clouds-toggle"
+        .checked=${this.currentView3dClouds()}
+        @change=${this.onToggleView3dClouds}
+      ></setting-toggle>
+
       <setting-slider
         label=${translateText("graphics_setting.view3d_pitch_label")}
         description=${translateText("graphics_setting.view3d_pitch_desc")}
@@ -1515,6 +1569,14 @@ export class GraphicsAdvancedSettings extends LitElement {
         id="special-effects-toggle"
         .checked=${this.currentSpecialEffects()}
         @change=${this.onToggleSpecialEffects}
+      ></setting-toggle>
+
+      <setting-toggle
+        label=${translateText("graphics_setting.glow_label")}
+        description=${translateText("graphics_setting.glow_desc")}
+        id="glow-toggle"
+        .checked=${this.currentGlow()}
+        @change=${this.onToggleGlow}
       ></setting-toggle>
 
       <setting-toggle

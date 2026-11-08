@@ -31,15 +31,18 @@ import type {
 } from "../types";
 import { Camera } from "./Camera";
 import { GLUnavailableError, initGL } from "./initGL";
+import { AtmospherePass } from "./passes/AtmospherePass";
 import { BarPass } from "./passes/BarPass";
 import { BorderComputePass } from "./passes/BorderComputePass";
 import { BorderStampPass } from "./passes/BorderStampPass";
+import { Building3DPass } from "./passes/Building3DPass";
 import { CoordinateGridPass } from "./passes/CoordinateGridPass";
 import { CrosshairPass } from "./passes/CrosshairPass";
 import { DefenseCoveragePass } from "./passes/DefenseCoveragePass";
 import { FalloutBloomPass } from "./passes/FalloutBloomPass";
 import { FalloutLightPass } from "./passes/FalloutLightPass";
 import { FxPass } from "./passes/fx-pass";
+import { GlowPass } from "./passes/GlowPass";
 import { LightmapPass } from "./passes/LightmapPass";
 import { MapLayerPass } from "./passes/MapLayerPass";
 import { MoveIndicatorPass } from "./passes/MoveIndicatorPass";
@@ -143,8 +146,15 @@ export class GPURenderer {
   // --- Tilted 3D view (settings.view3d) ---
   private heightField: HeightField;
   private terrain3DPass: Terrain3DPass;
+  private atmospherePass: AtmospherePass;
+  private building3DPass: Building3DPass;
+  /** This frame draws structures as 3D models (their icons are hidden). */
+  private buildingsShown = false;
   /** Offscreen image the flat map is drawn into while the 3D view is on. */
   private mapTarget: RenderTarget;
+  /** 3D view: the glowing effects drawn in map-image space (draped later). */
+  private emissiveImage: RenderTarget;
+  private glowPass: GlowPass;
   /** 2D camera the offscreen map image was drawn with this frame. */
   private imgCam = new Float32Array(9);
   /** Top-down camera at the true zoom, for laying out billboards. */
@@ -341,6 +351,12 @@ export class GPURenderer {
       mapW,
       mapH,
       this.heightField,
+      this.settings.view3d,
+    );
+    this.atmospherePass = new AtmospherePass(
+      gl,
+      mapW,
+      mapH,
       this.settings.view3d,
     );
 
@@ -638,6 +654,13 @@ export class GPURenderer {
       this.settings,
       config,
     );
+    this.building3DPass = new Building3DPass(
+      gl,
+      header.mapWidth,
+      header.mapHeight,
+      this.paletteTex,
+      this.settings.view3d,
+    );
     this.nukeFlightPass = new NukeFlightPass(
       gl,
       header.mapWidth,
@@ -691,6 +714,12 @@ export class GPURenderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.sceneTarget = { fbo: sceneFbo, tex: sceneTex, w: 1, h: 1 };
     this.mapTarget = createRenderTarget(gl, 1, 1);
+    this.emissiveImage = createRenderTarget(gl, 1, 1);
+    this.glowPass = new GlowPass(
+      gl,
+      this.settings.glow,
+      this.rawBindFramebuffer,
+    );
 
     // --- Alt-view passes ---
     this.affiliationPalette = new AffiliationPalette(gl, this.settings);
@@ -976,6 +1005,8 @@ export class GPURenderer {
     this.frameTick++;
     this.unitPass.setFrameTick(this.frameTick);
     this.unitPass.updateUnits(units, gameTick);
+    this.structurePass.setGameTick(gameTick);
+    this.building3DPass.setGameTick(gameTick);
     this.nukeFlightPass.updateUnits(units);
     this.samRadiusPass.setTick(gameTick);
     this.barPass.updateBars(units, this.lastStructures, gameTick);
@@ -1019,6 +1050,7 @@ export class GPURenderer {
   updateStructures(units: Map<number, UnitState>): void {
     this.lastStructures = units;
     this.structurePass.updateStructures(units);
+    this.building3DPass.updateStructures(units);
     this.structureLevelPass.updateStructures(units);
     this.samRadiusPass.updateStructures(units);
     this.unitPass.setStructures(units);
@@ -1379,7 +1411,27 @@ export class GPURenderer {
       this.billboardsOn = false;
       applyBillboardState(this.gl, BILLBOARDS_OFF, null);
     }
-    this.renderFrame2D(this.camera.getMatrix(), this.camera.zoom);
+    const cam = this.camera.getMatrix();
+    this.renderFrame2D(cam, this.camera.zoom);
+    if (this.glowActive()) {
+      this.glowPass.beginEmissive(this.canvas.width, this.canvas.height);
+      this.drawEmissive(cam, this.camera.zoom);
+      this.glowPass.composite();
+    }
+  }
+
+  private glowActive(): boolean {
+    return this.glowPass.enabled() && !this.altView;
+  }
+
+  /**
+   * The light-emitting effects, again, for the glow layer. `nukes` is false
+   * for the 3D view's map image: there the missiles glow in the air instead.
+   */
+  private drawEmissive(cam: Float32Array, zoom: number, nukes = true): void {
+    const pe = this.settings.passEnabled;
+    if (pe.fx) this.fxPass.drawEmissive(cam);
+    if (pe.unit && nukes) this.nukeFlightPass.draw(cam, zoom);
   }
 
   /**
@@ -1423,7 +1475,37 @@ export class GPURenderer {
     gl.clearColor(bgf[0], bgf[1], bgf[2], 1);
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.atmospherePass.drawSky(bgf);
     this.terrain3DPass.draw(view, this.imgCam, this.mapTarget.tex, bgf);
+    // Above the terrain, below icons and names.
+    // Structures as 3D models when zoomed in enough (icons otherwise).
+    this.buildingsShown =
+      !this.altView &&
+      this.settings.passEnabled.structure &&
+      this.building3DPass.visibleAt(this.camera.zoom / renderDpr());
+    if (this.buildingsShown) {
+      this.building3DPass.draw(
+        view,
+        this.camera.zoom / renderDpr(),
+        this.terrain3DPass.heightTexture(),
+      );
+    }
+    this.atmospherePass.drawClouds(view);
+
+    // Glow: the emissive effects in image space, draped like the map.
+    const glow = this.glowActive();
+    if (glow) {
+      resizeRenderTarget(gl, this.emissiveImage, cw, ch);
+      this.rawBindFramebuffer(gl.FRAMEBUFFER, this.emissiveImage.fbo);
+      gl.viewport(0, 0, cw, ch);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      this.drawEmissive(this.imgCam, ortho.zoom, false);
+      this.rawBindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, cw, ch);
+    }
 
     this.billboardsOn = true;
     applyBillboardState(
@@ -1447,6 +1529,19 @@ export class GPURenderer {
       this.bbCam,
     );
     this.renderBillboards(this.bbCam, this.camera.zoom);
+
+    if (glow) {
+      this.glowPass.beginEmissive(cw, ch);
+      this.terrain3DPass.drawEmissive(
+        view,
+        this.imgCam,
+        this.emissiveImage.tex,
+      );
+      if (this.settings.passEnabled.unit) {
+        this.nukeFlightPass.draw(this.bbCam, this.camera.zoom, "missile");
+      }
+      this.glowPass.composite();
+    }
   }
 
   private renderFrame2D(
@@ -1558,7 +1653,9 @@ export class GPURenderer {
     if (pe.unit) {
       this.unitPass.setHideNukes(this.nukeFlightPass.isActive());
       if (bb) this.unitPass.drawMissiles(cam);
-      this.nukeFlightPass.draw(cam, zoom);
+      // 3D view: only the ground shadow is part of the map image; the
+      // missile flies above the terrain (renderBillboards).
+      this.nukeFlightPass.draw(cam, zoom, bb ? "all" : "shadow");
     }
 
     if (pe.fx) {
@@ -1596,10 +1693,13 @@ export class GPURenderer {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     if (pe.unit) this.unitPass.drawGround(cam);
-    if (pe.structure) this.structurePass.draw(cam, zoom);
+    if (pe.structure && !this.buildingsShown) {
+      this.structurePass.draw(cam, zoom);
+    }
     if (pe.structure) this.structureLevelPass.draw(cam, zoom);
     if (pe.bar) this.barPass.draw(cam);
     if (pe.unit) this.unitPass.drawMissiles(cam);
+    if (pe.unit) this.nukeFlightPass.draw(cam, zoom, "missile");
     this.drawNamesAndText(cam, zoom);
     gl.disable(gl.BLEND);
   }
@@ -1688,6 +1788,11 @@ export class GPURenderer {
     }
     this.terrainPass.dispose();
     this.terrain3DPass.dispose();
+    this.atmospherePass.dispose();
+    this.building3DPass.dispose();
+    this.glowPass.dispose();
+    this.gl.deleteFramebuffer(this.emissiveImage.fbo);
+    this.gl.deleteTexture(this.emissiveImage.tex);
     this.gl.deleteFramebuffer(this.mapTarget.fbo);
     this.gl.deleteTexture(this.mapTarget.tex);
     this.territoryPass.dispose();

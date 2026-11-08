@@ -63,6 +63,8 @@ export function diffPlayerUpdate(
     prev.betrayals === next.betrayals &&
     prev.lastDeleteUnitTick === next.lastDeleteUnitTick &&
     prev.isLobbyCreator === next.isLobbyCreator &&
+    stringArrayEqual(prev.techs, next.techs) &&
+    researchEqual(prev.research, next.research) &&
     numberArrayEqual(prev.allies, next.allies) &&
     numberArrayEqual(prev.targets, next.targets) &&
     stringArrayEqual(
@@ -130,6 +132,8 @@ export function diffPlayerUpdate(
     prev.lastDeleteUnitTick === next.lastDeleteUnitTick,
   );
   setIfDifferent("isLobbyCreator", prev.isLobbyCreator === next.isLobbyCreator);
+  setIfDifferent("techs", stringArrayEqual(prev.techs, next.techs));
+  setIfDifferent("research", researchEqual(prev.research, next.research));
   setIfDifferent("allies", numberArrayEqual(prev.allies, next.allies));
   setIfDifferent("targets", numberArrayEqual(prev.targets, next.targets));
   setIfDifferent(
@@ -178,6 +182,17 @@ function stringArrayEqual(a?: string[], b?: string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
+}
+
+function researchEqual(
+  a: PlayerUpdate["research"],
+  b: PlayerUpdate["research"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.tech === b.tech && a.startTick === b.startTick && a.endTick === b.endTick
+  );
 }
 
 function stringSetEqual(a?: Set<string>, b?: Set<string>): boolean {

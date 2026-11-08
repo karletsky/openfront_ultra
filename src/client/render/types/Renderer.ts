@@ -85,6 +85,12 @@ export interface PlayerState {
   /** TileRef the player picked as their spawn (undefined if not yet spawned). */
   spawnTile?: number;
   lastDeleteUnitTick: number;
+  /**
+   * Advanced warfare: researched techs and the research in progress. Optional
+   * because replays don't record them.
+   */
+  techs?: string[];
+  research?: { tech: string; startTick: number; endTick: number } | null;
   allies: number[];
   embargoes: number[];
   targets: number[];
@@ -124,6 +130,8 @@ export interface UnitState {
   samUpgradeStartRange: number | null;
   samUpgradeTargetLevel: number | null;
   samUpgradeDuration: number | null;
+  /** Advanced warfare: EMP-disabled until this tick (-1 = never). */
+  disabledUntil?: number;
 }
 
 /** Minimal dead-unit data needed by the FX pass. */

@@ -147,6 +147,7 @@ const DEFAULT_OPTIONS = {
   customAlliances: false,
   customAllianceMinutes: undefined as number | undefined,
   waterNukes: false,
+  advancedWarfare: false,
   doomsdayClock: false,
   doomsdayClockSpeed: "normal" as DoomsdayClockSpeed,
   overtime: false,
@@ -236,6 +237,7 @@ export class SinglePlayerModal extends BaseModal {
   @state() private customAllianceMinutes: number | undefined =
     DEFAULT_OPTIONS.customAllianceMinutes;
   @state() private waterNukes: boolean = DEFAULT_OPTIONS.waterNukes;
+  @state() private advancedWarfare: boolean = DEFAULT_OPTIONS.advancedWarfare;
   @state() private doomsdayClock: boolean = DEFAULT_OPTIONS.doomsdayClock;
   @state() private doomsdayClockSpeed: DoomsdayClockSpeed =
     DEFAULT_OPTIONS.doomsdayClockSpeed;
@@ -613,6 +615,10 @@ export class SinglePlayerModal extends BaseModal {
                     checked: this.waterNukes,
                   },
                   {
+                    labelKey: "game_settings.advanced_warfare",
+                    checked: this.advancedWarfare,
+                  },
+                  {
                     labelKey: "game_settings.doomsday_clock",
                     checked: this.doomsdayClock,
                     doomsdayClockSpeed: this.doomsdayClockSpeed,
@@ -686,6 +692,7 @@ export class SinglePlayerModal extends BaseModal {
       this.customAlliances !== DEFAULT_OPTIONS.customAlliances ||
       this.customAllianceMinutes !== DEFAULT_OPTIONS.customAllianceMinutes ||
       this.waterNukes !== DEFAULT_OPTIONS.waterNukes ||
+      this.advancedWarfare !== DEFAULT_OPTIONS.advancedWarfare ||
       this.doomsdayClock !== DEFAULT_OPTIONS.doomsdayClock ||
       // Pace only matters when the mode is on (startGame drops it when off).
       (this.doomsdayClock &&
@@ -817,6 +824,7 @@ export class SinglePlayerModal extends BaseModal {
     this.customAlliances = DEFAULT_OPTIONS.customAlliances;
     this.customAllianceMinutes = DEFAULT_OPTIONS.customAllianceMinutes;
     this.waterNukes = DEFAULT_OPTIONS.waterNukes;
+    this.advancedWarfare = DEFAULT_OPTIONS.advancedWarfare;
     this.doomsdayClock = DEFAULT_OPTIONS.doomsdayClock;
     this.doomsdayClockSpeed = DEFAULT_OPTIONS.doomsdayClockSpeed;
     this.overtime = DEFAULT_OPTIONS.overtime;
@@ -863,6 +871,7 @@ export class SinglePlayerModal extends BaseModal {
       customAlliances: this.customAlliances,
       customAllianceMinutes: this.customAllianceMinutes,
       waterNukes: this.waterNukes,
+      advancedWarfare: this.advancedWarfare,
       doomsdayClock: this.doomsdayClock,
       doomsdayClockSpeed: this.doomsdayClockSpeed,
       overtime: this.overtime,
@@ -892,6 +901,7 @@ export class SinglePlayerModal extends BaseModal {
     this.customAlliances = config.customAlliances ?? false;
     this.customAllianceMinutes = config.customAllianceMinutes;
     this.waterNukes = config.waterNukes ?? false;
+    this.advancedWarfare = config.advancedWarfare ?? false;
     this.doomsdayClock = config.doomsdayClock ?? false;
     this.doomsdayClockSpeed = config.doomsdayClockSpeed ?? "normal";
     this.overtime = config.overtime ?? false;
@@ -1031,6 +1041,9 @@ export class SinglePlayerModal extends BaseModal {
         break;
       case "game_settings.water_nukes":
         this.waterNukes = checked;
+        break;
+      case "game_settings.advanced_warfare":
+        this.advancedWarfare = checked;
         break;
       case "game_settings.doomsday_clock":
         this.doomsdayClock = checked;
@@ -1363,6 +1376,7 @@ export class SinglePlayerModal extends BaseModal {
               ? { customAllianceDuration: this.customAllianceMinutes ?? 0 }
               : {}),
             ...(this.waterNukes ? { waterNukes: true } : {}),
+            ...(this.advancedWarfare ? { advancedWarfare: true } : {}),
             ...(this.doomsdayClock
               ? {
                   doomsdayClock: {

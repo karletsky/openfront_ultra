@@ -14,6 +14,9 @@ import {
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
+  UT_TACTICAL_NUKE,
+  UT_EMP_BOMB,
+  UT_DIRTY_BOMB,
 } from "../../types";
 
 /** Visual kind per nuke type; also indexes the shader's per-kind styling. */
@@ -22,6 +25,9 @@ export const NUKE_KIND: ReadonlyMap<string, number> = new Map([
   [UT_HYDROGEN_BOMB, 1],
   [UT_MIRV, 2],
   [UT_MIRV_WARHEAD, 3],
+  [UT_TACTICAL_NUKE, 4],
+  [UT_EMP_BOMB, 5],
+  [UT_DIRTY_BOMB, 6],
 ]);
 
 export interface NukeFlight {

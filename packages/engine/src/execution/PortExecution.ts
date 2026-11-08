@@ -62,7 +62,8 @@ export class PortExecution implements Execution {
       return;
     }
 
-    if (!this.shouldSpawnTradeShip()) {
+    // An EMP-disabled port sends no trade ships.
+    if (this.port.isDisabled() || !this.shouldSpawnTradeShip()) {
       return;
     }
 

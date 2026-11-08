@@ -55,6 +55,8 @@ function boxBlur(
 
 export class HeightField {
   readonly data: Uint8Array;
+  /** 255 for water tiles, 0 for land (3D view sea shading). */
+  readonly water: Uint8Array;
 
   constructor(
     readonly width: number,
@@ -62,6 +64,7 @@ export class HeightField {
     terrainBytes: Uint8Array,
   ) {
     this.data = new Uint8Array(width * height);
+    this.water = new Uint8Array(width * height);
     this.rebuild(terrainBytes);
   }
 
@@ -71,7 +74,10 @@ export class HeightField {
     const n = w * h;
     const a = new Float32Array(n);
     const b = new Float32Array(n);
-    for (let i = 0; i < n; i++) a[i] = rawHeight(terrainBytes[i]);
+    for (let i = 0; i < n; i++) {
+      a[i] = rawHeight(terrainBytes[i]);
+      this.water[i] = (terrainBytes[i] & 0x80) === 0 ? 255 : 0;
+    }
     // Two box passes ≈ a soft tent blur.
     boxBlur(a, b, w, h, BLUR_RADIUS, true);
     boxBlur(b, a, w, h, BLUR_RADIUS, false);
@@ -96,8 +102,10 @@ export class HeightField {
     for (let j = 0; j < rh; j++) {
       for (let i = 0; i < rw; i++) {
         const idx = (y + j) * this.width + (x + i);
-        const v = rawHeight(bytes[offset + j * rw + i]);
+        const tb = bytes[offset + j * rw + i];
+        const v = rawHeight(tb);
         if (v < this.data[idx]) this.data[idx] = v;
+        this.water[idx] = (tb & 0x80) === 0 ? 255 : 0;
       }
     }
   }

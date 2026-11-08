@@ -37,6 +37,9 @@ import { assetUrl } from "@openfront/shared/AssetUrls";
 import type { RendererConfig, UnitState } from "../../types";
 import {
   SMOOTHED_NUKE_TYPES,
+  UT_DIRTY_BOMB,
+  UT_EMP_BOMB,
+  UT_TACTICAL_NUKE,
   TrainType,
   UT_ATOM_BOMB,
   UT_HYDROGEN_BOMB,
@@ -136,6 +139,9 @@ const TRAIN_CARRIAGE_LOADED_COL = UNIT_ORDER.indexOf("TrainCarriageLoaded");
 /** Nuke + warhead types — rendered with flickering hot colors */
 const FLICKER_TYPES: ReadonlySet<string> = new Set([
   UT_ATOM_BOMB,
+  UT_TACTICAL_NUKE,
+  UT_EMP_BOMB,
+  UT_DIRTY_BOMB,
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
@@ -147,6 +153,9 @@ const FLICKER_TYPES: ReadonlySet<string> = new Set([
  *  Ground/sea units (boats, trains) render below structures. */
 const MISSILE_TYPES: ReadonlySet<string> = new Set([
   UT_ATOM_BOMB,
+  UT_TACTICAL_NUKE,
+  UT_EMP_BOMB,
+  UT_DIRTY_BOMB,
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_SAM_MISSILE,
@@ -294,6 +303,11 @@ export class UnitPass {
       if (col >= 0) {
         this.typeToAtlasCol.set(header.unitTypes[i], col);
       }
+    }
+    // Advanced warfare nukes have no sprite of their own: draw the atom bomb
+    // sprite (alt view, or with enhanced nukes off).
+    for (const t of [UT_TACTICAL_NUKE, UT_EMP_BOMB, UT_DIRTY_BOMB]) {
+      this.typeToAtlasCol.set(t, ATOM_BOMB_COL);
     }
 
     // Compile shaders

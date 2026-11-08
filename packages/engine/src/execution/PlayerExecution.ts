@@ -57,6 +57,7 @@ export class PlayerExecution implements Execution {
 
   tick(ticks: number) {
     this.player.decayRelations();
+    this.player.tickResearch();
     for (const u of this.player.units()) {
       if (!Structures.has(u.type())) {
         continue;

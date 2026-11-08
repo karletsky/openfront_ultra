@@ -1,4 +1,5 @@
 import { AllPlayersStats, ClientID } from "../Schemas";
+import { TechId } from "./Tech";
 
 import { TileRef } from "./GameMap";
 import { GameUpdate, GameUpdateType } from "./GameUpdates";
@@ -214,6 +215,24 @@ export enum UnitType {
   MIRVWarhead = "MIRV Warhead",
   Train = "Train",
   Factory = "Factory",
+  // Advanced warfare nukes (GameConfig.advancedWarfare), unlocked by techs.
+  TacticalNuke = "Tactical Nuke",
+  EMPBomb = "EMP Bomb",
+  DirtyBomb = "Dirty Bomb",
+}
+
+/** The tech that unlocks an advanced warfare unit, if it needs one. */
+export function requiredTechFor(type: UnitType): TechId | null {
+  switch (type) {
+    case UnitType.TacticalNuke:
+      return TechId.TacticalNukes;
+    case UnitType.EMPBomb:
+      return TechId.Electromagnetics;
+    case UnitType.DirtyBomb:
+      return TechId.RadiologicalWeapons;
+    default:
+      return null;
+  }
 }
 
 export enum TrainType {
@@ -227,6 +246,18 @@ export const Nukes = unitTypeGroup([
   UnitType.HydrogenBomb,
   UnitType.MIRVWarhead,
   UnitType.MIRV,
+  UnitType.TacticalNuke,
+  UnitType.EMPBomb,
+  UnitType.DirtyBomb,
+] as const);
+
+/** Silo-launched nukes that fly straight to a target (everything but MIRV). */
+export const SiloNukes = unitTypeGroup([
+  UnitType.AtomBomb,
+  UnitType.HydrogenBomb,
+  UnitType.TacticalNuke,
+  UnitType.EMPBomb,
+  UnitType.DirtyBomb,
 ] as const);
 
 export const BuildableAttacks = unitTypeGroup([
@@ -234,6 +265,9 @@ export const BuildableAttacks = unitTypeGroup([
   UnitType.HydrogenBomb,
   UnitType.MIRV,
   UnitType.Warship,
+  UnitType.TacticalNuke,
+  UnitType.EMPBomb,
+  UnitType.DirtyBomb,
 ] as const);
 
 export const Structures = unitTypeGroup([
@@ -478,6 +512,8 @@ export enum MessageType {
   DONATION_RECEIVED,
   CHAT,
   RENEW_ALLIANCE,
+  RESEARCH_COMPLETE,
+  EMP_STRIKE,
 }
 
 // Message categories used for filtering events in the EventsDisplay
@@ -510,6 +546,8 @@ export const MESSAGE_TYPE_CATEGORIES: Record<MessageType, MessageCategory> = {
   [MessageType.ALLIANCE_BROKEN]: MessageCategory.ALLIANCE,
   [MessageType.ALLIANCE_EXPIRED]: MessageCategory.ALLIANCE,
   [MessageType.RENEW_ALLIANCE]: MessageCategory.ALLIANCE,
+  [MessageType.RESEARCH_COMPLETE]: MessageCategory.TRADE,
+  [MessageType.EMP_STRIKE]: MessageCategory.NUKE,
   [MessageType.DONATION_SENT]: MessageCategory.TRADE,
   [MessageType.DONATION_RECEIVED]: MessageCategory.TRADE,
   [MessageType.CHAT]: MessageCategory.CHAT,

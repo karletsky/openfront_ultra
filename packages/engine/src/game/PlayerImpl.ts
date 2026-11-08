@@ -10,6 +10,7 @@ import {
   GameType,
   Gold,
   MAX_UPGRADE_AMOUNT,
+  MessageType,
   PlayerBuildable,
   PlayerBuildableUnitType,
   PlayerID,
@@ -17,6 +18,7 @@ import {
   PlayerProfile,
   PlayerType,
   Relation,
+  requiredTechFor,
   Structures,
   Team,
   TerraNullius,
@@ -32,6 +34,7 @@ import {
   PlayerUpdate,
 } from "@openfront/engine-api/game/GameUpdates";
 import { ReadonlyTileSet } from "@openfront/engine-api/game/ReadViews";
+import { TECHS, techDef, TechId } from "@openfront/engine-api/game/Tech";
 import { ClientID } from "@openfront/engine-api/Schemas";
 import { andFN, manhattanDistFN } from "@openfront/engine-lib/game/GameMapImpl";
 import { TileSet } from "@openfront/engine-lib/game/TileSet";
@@ -67,6 +70,7 @@ import type {
 } from "../snapshot/SnapshotContext";
 import { AttackImpl } from "./AttackImpl";
 import {
+  ActiveResearch,
   Alliance,
   AllianceRequest,
   Attack,
@@ -74,6 +78,7 @@ import {
   Embargo,
   MutableAlliance,
   Player,
+  ResearchBlocker,
   Unit,
   UnitParams,
 } from "./Game";
@@ -188,6 +193,9 @@ export class PlayerImpl implements Player {
   private relations = new Map<Player, number>();
 
   private lastDeleteUnitTick: Tick = -1;
+  // Advanced warfare research (engine-api game/Tech.ts).
+  private _techs = new Set<TechId>();
+  private _research: ActiveResearch | null = null;
   private lastEmbargoAllTick: Tick = -1;
 
   public _incomingAttacks: Attack[] = [];
@@ -416,6 +424,8 @@ export class PlayerImpl implements Player {
       betrayals: this._betrayalCount,
       lastDeleteUnitTick: this.lastDeleteUnitTick,
       isLobbyCreator: this.isLobbyCreator(),
+      techs: this.techs(),
+      research: this._research === null ? null : { ...this._research },
     };
   }
 
@@ -1317,6 +1327,58 @@ export class PlayerImpl implements Player {
     return this._gold;
   }
 
+  // ---- Advanced warfare research ----
+
+  hasTech(tech: TechId): boolean {
+    return this._techs.has(tech);
+  }
+
+  /** Researched techs, in tech-tree order (stable for updates/snapshots). */
+  techs(): TechId[] {
+    return TECHS.filter((t) => this._techs.has(t.id)).map((t) => t.id);
+  }
+
+  activeResearch(): ActiveResearch | null {
+    return this._research;
+  }
+
+  researchBlocker(tech: TechId): ResearchBlocker | null {
+    if (!this.mg.config().advancedWarfare()) return "disabled";
+    if (this._techs.has(tech)) return "researched";
+    if (this._research !== null) return "busy";
+    if (!techDef(tech).requires.every((r) => this._techs.has(r))) {
+      return "prerequisites";
+    }
+    if (this._gold < this.mg.config().techCost(this, tech)) return "gold";
+    return null;
+  }
+
+  startResearch(tech: TechId): boolean {
+    if (this.researchBlocker(tech) !== null) return false;
+    this.removeGold(this.mg.config().techCost(this, tech));
+    const now = this.mg.ticks();
+    this._research = {
+      tech,
+      startTick: now,
+      endTick: now + this.mg.config().techResearchTicks(tech),
+    };
+    return true;
+  }
+
+  tickResearch(): void {
+    const r = this._research;
+    if (r === null || this.mg.ticks() < r.endTick) return;
+    this._research = null;
+    this._techs.add(r.tech);
+    this.mg.displayMessage(
+      "events_display.research_complete",
+      MessageType.RESEARCH_COMPLETE,
+      this.id(),
+      undefined,
+      { tech: r.tech },
+    );
+  }
+
   tradeGold(): Gold {
     return this._tradeGold;
   }
@@ -1461,6 +1523,10 @@ export class PlayerImpl implements Player {
     knownCost: Gold | null = null,
   ): boolean {
     if (this.mg.config().isUnitDisabled(unitType)) {
+      return false;
+    }
+    const tech = requiredTechFor(unitType);
+    if (tech !== null && !this.hasTech(tech)) {
       return false;
     }
     const cost = knownCost ?? this.mg.unitInfo(unitType).cost(this.mg, this);
@@ -1609,6 +1675,9 @@ export class PlayerImpl implements Player {
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
+      case UnitType.TacticalNuke:
+      case UnitType.EMPBomb:
+      case UnitType.DirtyBomb:
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.MIRVWarhead:
         return targetTile;
@@ -1664,7 +1733,7 @@ export class PlayerImpl implements Player {
       nukeType !== UnitType.MIRV &&
       !gameOver
     ) {
-      const magnitude = config.nukeMagnitudes(nukeType);
+      const magnitude = config.nukeMagnitudes(nukeType, this);
       const wouldHitTeammate = mg.anyUnitNearby(
         tile,
         magnitude.outer,
@@ -1679,7 +1748,10 @@ export class PlayerImpl implements Player {
     // only get missilesilos that are not on cooldown and not under construction
     const readySilos = this.units(UnitType.MissileSilo).filter(
       (silo) =>
-        silo.isActive() && !silo.isInCooldown() && !silo.isUnderConstruction(),
+        silo.isActive() &&
+        !silo.isInCooldown() &&
+        !silo.isUnderConstruction() &&
+        !silo.isDisabled(),
     );
     readySilos.sort(
       (a, b) =>
@@ -2012,6 +2084,8 @@ export class PlayerImpl implements Player {
       relations: [...this.relations].map(([p, r]) => [w.player(p), r]),
       lastDeleteUnitTick: this.lastDeleteUnitTick,
       lastEmbargoAllTick: this.lastEmbargoAllTick,
+      techs: this.techs(),
+      research: this._research === null ? null : { ...this._research },
       incomingAttacks: this._incomingAttacks.map((a) => w.attack(a)),
       outgoingAttacks: this._outgoingAttacks.map((a) => w.attack(a)),
       outgoingLandAttacks: this._outgoingLandAttacks.map((a) => w.attack(a)),
@@ -2089,6 +2163,8 @@ export class PlayerImpl implements Player {
     );
     this.lastDeleteUnitTick = s.lastDeleteUnitTick;
     this.lastEmbargoAllTick = s.lastEmbargoAllTick;
+    this._techs = new Set(s.techs);
+    this._research = s.research === null ? null : { ...s.research };
     this._incomingAttacks = s.incomingAttacks.map((i) => r.attack(i));
     this._outgoingAttacks = s.outgoingAttacks.map((i) => r.attack(i));
     this._outgoingLandAttacks = s.outgoingLandAttacks.map((i) => r.attack(i));
@@ -2113,7 +2189,11 @@ export class PlayerImpl implements Player {
 
 export const PlayerSnapshot = snapshotType({
   name: "Player",
-  version: 1,
+  version: 2,
+  migrations: {
+    // v1 players predate advanced warfare: nothing researched.
+    1: (d) => ({ ...d, techs: [], research: null }),
+  },
   schema: z.object({
     smallID: zInt(),
     info: PlayerInfoSchema,
@@ -2158,6 +2238,10 @@ export const PlayerSnapshot = snapshotType({
     relations: z.array(z.tuple([zPlayerRef(), zNum()])),
     lastDeleteUnitTick: zInt(),
     lastEmbargoAllTick: zInt(),
+    techs: z.array(z.enum(TechId)),
+    research: z
+      .object({ tech: z.enum(TechId), startTick: zInt(), endTick: zInt() })
+      .nullable(),
     incomingAttacks: z.array(zRef()),
     outgoingAttacks: z.array(zRef()),
     outgoingLandAttacks: z.array(zRef()),

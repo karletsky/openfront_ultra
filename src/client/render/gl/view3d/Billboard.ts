@@ -34,15 +34,20 @@ uniform float uBBCenterDepth;
 uniform vec2 uBBMapSize;
 uniform sampler2D uBBHeight;
 
-vec4 bbProject(mat3 cam, vec2 anchor, vec2 worldPos) {
+// lift: extra height above the terrain at the anchor, in tiles (3D only).
+vec4 bbProjectLift(mat3 cam, vec2 anchor, vec2 worldPos, float lift) {
   vec3 c2 = cam * vec3(worldPos, 1.0);
   if (uBBEnabled < 0.5) return vec4(c2.xy, 0.0, 1.0);
   vec3 a2 = cam * vec3(anchor, 1.0);
-  float h = textureLod(uBBHeight, anchor / uBBMapSize, 0.0).r * uBBHeightScale;
+  float h = textureLod(uBBHeight, anchor / uBBMapSize, 0.0).r * uBBHeightScale + lift;
   vec4 a3 = uBBViewProj * vec4(anchor, h, 1.0);
   float w = max(a3.w, 1e-4);
   float persp = uBBCenterDepth / w;
   return vec4(a3.xy / w + (c2.xy - a2.xy) * persp, 0.0, 1.0);
+}
+
+vec4 bbProject(mat3 cam, vec2 anchor, vec2 worldPos) {
+  return bbProjectLift(cam, anchor, worldPos, 0.0);
 }
 `;
 
@@ -73,7 +78,10 @@ export function registerBillboardProgram(
   const heightLoc = gl.getUniformLocation(program, "uBBHeight");
   const enabled = gl.getUniformLocation(program, "uBBEnabled");
   if (!heightLoc && !enabled) return;
-  const prev = gl.getParameter(gl.CURRENT_PROGRAM) as WebGLProgram | null;
+  // Restore whatever program was bound (optional call: some test doubles of
+  // the GL context don't implement getParameter).
+  const prev = (gl.getParameter?.(gl.CURRENT_PROGRAM) ??
+    null) as WebGLProgram | null;
   gl.useProgram(program);
   if (heightLoc) gl.uniform1i(heightLoc, BILLBOARD_HEIGHT_UNIT);
   gl.useProgram(prev);

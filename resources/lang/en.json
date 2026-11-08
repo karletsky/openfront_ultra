@@ -204,12 +204,15 @@
       "atom_bomb": "Small explosion",
       "city": "Increases max population",
       "defense_post": "Increases defenses of nearby borders",
+      "dirty_bomb": "Small blast that leaves a radiation zone: for 45 seconds, held land keeps falling back to fallout",
+      "emp_bomb": "Destroys nothing, but disables SAMs, silos, defense posts and ports in a wide radius for 30 seconds",
       "factory": "Creates railroads and spawns trains",
       "hydrogen_bomb": "Large explosion",
       "mirv": "Huge explosion, only targets selected player",
       "missile_silo": "Used to launch nukes",
       "port": "Sends trade ships to generate gold",
       "sam_launcher": "Defends against incoming nukes",
+      "tactical_nuke": "Small, cheap and fast. A precise strike that rarely breaks alliances",
       "warship": "Captures trade ships, destroys ships and boats"
     },
     "not_enough_money": "Not enough money",
@@ -918,8 +921,11 @@
     "betrayal_description": "You broke your alliance with {name}, making you a TRAITOR ({malusPercent}% defense debuff for {durationText})",
     "betrayed_you": "{name} broke their alliance with you",
     "conquered_no_gold": "Conquered {name} (didn't play, no gold awarded)",
+    "dirty_bomb_inbound": "{name} - dirty bomb inbound",
     "duration_second": "1 second",
     "duration_seconds_plural": "{seconds} seconds",
+    "emp_bomb_inbound": "{name} - EMP bomb inbound",
+    "emp_strike": "{name} - EMP strike! Your structures are disabled",
     "focus": "Focus",
     "hydrogen_bomb_detonated": "{name} - hydrogen bomb detonated",
     "hydrogen_bomb_inbound": "{name} - hydrogen bomb inbound",
@@ -935,11 +941,13 @@
     "reject_alliance": "Reject",
     "renew_alliance": "Request to renew",
     "request_alliance": "{name} requests an alliance!",
+    "research_complete": "Research complete: {tech}",
     "retreating": "retreating",
     "sent_emoji": "Sent {name}: {emoji}",
     "sent_emoji_all": "Sent everyone: {emoji}",
     "sent_gold_to_player": "Sent {gold} gold to {name}",
     "sent_troops_to_player": "Sent {troops} troops to {name}",
+    "tactical_nuke_inbound": "{name} - tactical nuke inbound",
     "trade_ship_captured": "Your trade ship was captured by {name}",
     "unit_destroyed": "Your {unit} was destroyed",
     "unit_voluntarily_deleted": "Unit voluntarily deleted",
@@ -1068,6 +1076,7 @@
     "share_link": "Share Link"
   },
   "game_settings": {
+    "advanced_warfare": "Advanced warfare",
     "bots": "Tribes: ",
     "compact_map": "Compact Map",
     "custom_alliances": "Alliance Duration",
@@ -1150,6 +1159,8 @@
     "enhanced_units_label": "Enhanced units",
     "fallout_desc": "Show the green nuclear fallout glow on irradiated territory. Disable to improve performance",
     "fallout_label": "Fallout effects",
+    "glow_desc": "Explosions, nuke exhausts and EMP pulses glow and light up their surroundings. Disable to improve performance",
+    "glow_label": "Glow effects",
     "highland_color_desc": "Base color for higher-elevation terrain.",
     "highland_color_label": "Highland color",
     "highlight_brighten_desc": "How strongly the border brightens on hover (0 to disable)",
@@ -1226,6 +1237,10 @@
     "territory_alpha_label": "Territory opacity",
     "territory_sat_desc": "How vivid the territory fill colors are (lower mutes them)",
     "territory_sat_label": "Territory saturation",
+    "view3d_buildings_desc": "Show cities, factories, ports, silos, SAMs and defense posts as 3D models in the 3D view when zoomed in",
+    "view3d_buildings_label": "3D buildings",
+    "view3d_clouds_desc": "Drifting clouds that cast shadows on the map in the 3D view. They fade out when you zoom in",
+    "view3d_clouds_label": "3D clouds",
     "view3d_desc": "Show the map in 3D: a tilted camera with raised mountains and hills. Disable for the classic flat top-down map",
     "view3d_height_desc": "How tall the highest mountains are in the 3D view.",
     "view3d_height_label": "3D terrain height",
@@ -2731,6 +2746,103 @@
     "teal": "Teal",
     "yellow": "Yellow"
   },
+  "tech": {
+    "amphibious": {
+      "desc": "3 more transport ships at sea at once",
+      "name": "Amphibious Warfare"
+    },
+    "armor_plating": {
+      "desc": "Warships have 30% more health",
+      "name": "Armor Plating"
+    },
+    "banking": {
+      "desc": "+15% passive gold income",
+      "name": "Banking"
+    },
+    "conscription": {
+      "desc": "Troops grow 10% faster",
+      "name": "Conscription"
+    },
+    "electromagnetics": {
+      "desc": "Unlocks the EMP bomb",
+      "name": "Electromagnetics"
+    },
+    "enhanced_yield": {
+      "desc": "Your nukes' blasts are 20% larger",
+      "name": "Enhanced Yield"
+    },
+    "fortifications": {
+      "desc": "Enemies attacking you lose 15% more troops",
+      "name": "Fortifications"
+    },
+    "global_markets": {
+      "desc": "A further +25% passive gold income",
+      "name": "Global Markets"
+    },
+    "industrialization": {
+      "desc": "Cities, factories and ports cost 20% less",
+      "name": "Industrialization"
+    },
+    "logistics": {
+      "desc": "+10% maximum troops",
+      "name": "Logistics"
+    },
+    "mass_production": {
+      "desc": "All nukes cost 25% less",
+      "name": "Mass Production"
+    },
+    "missile_defense": {
+      "desc": "SAMs reach 20% farther and reload 25% faster",
+      "name": "Missile Defense"
+    },
+    "missile_propulsion": {
+      "desc": "Your nukes fly 30% faster",
+      "name": "Missile Propulsion"
+    },
+    "naval_gunnery": {
+      "desc": "Warship shells deal 25% more damage",
+      "name": "Naval Gunnery"
+    },
+    "radiological_weapons": {
+      "desc": "Unlocks the dirty bomb",
+      "name": "Radiological Weapons"
+    },
+    "shipbuilding": {
+      "desc": "Warships cost 25% less",
+      "name": "Shipbuilding"
+    },
+    "shock_troops": {
+      "desc": "Your attacks lose 15% fewer troops",
+      "name": "Shock Troops"
+    },
+    "stealth_warheads": {
+      "desc": "SAMs can only target your nukes in a 40% smaller window",
+      "name": "Stealth Warheads"
+    },
+    "tactical_nukes": {
+      "desc": "Unlocks the tactical nuke",
+      "name": "Tactical Nukes"
+    },
+    "trade_networks": {
+      "desc": "+20% gold from trade ships and trains",
+      "name": "Trade Networks"
+    }
+  },
+  "tech_tree": {
+    "branch": {
+      "economy": "Economy",
+      "military": "Military",
+      "naval": "Naval",
+      "nuclear": "Nuclear"
+    },
+    "button": "Research",
+    "idle": "Nothing in progress",
+    "requires": "Requires: {techs}",
+    "research_for": "Research ({gold})",
+    "researched": "Researched",
+    "tier": "Tier {tier}",
+    "title": "Tech tree"
+  },
   "territory_patterns": {
     "pattern": {
       "default": "Default"
@@ -2829,12 +2941,15 @@
     "boat": "Boat",
     "city": "City",
     "defense_post": "Defense Post",
+    "dirty_bomb": "Dirty Bomb",
+    "emp_bomb": "EMP Bomb",
     "factory": "Factory",
     "hydrogen_bomb": "Hydrogen Bomb",
     "mirv": "MIRV",
     "missile_silo": "Missile Silo",
     "port": "Port",
     "sam_launcher": "SAM Launcher",
+    "tactical_nuke": "Tactical Nuke",
     "warship": "Warship"
   },
   "update_available": {

@@ -13,8 +13,10 @@ import type {
   AttackRingInput,
   ConquestFx,
   DeadUnitFx,
+  NukeExplosionRenderParams,
   RendererConfig,
 } from "../../../types";
+import { UT_EMP_BOMB } from "../../../types";
 import type { RenderSettings } from "../../RenderSettings";
 import { GLContextLostError } from "../../utils/GlUtils";
 import { FxAttackRingPass } from "./FxAttackRingPass";
@@ -26,6 +28,20 @@ import {
 import { FxSpritePass } from "./FxSpritePass";
 
 export type { AttackRingInput } from "../../../types";
+
+/** EMP detonation look: the electric "EMP pulse" shockwave style, in cyan. */
+const EMP_PULSE: NukeExplosionRenderParams = {
+  type: "shockwave",
+  colors: [
+    [0.35, 0.9, 1],
+    [0.75, 0.97, 1],
+    [0.2, 0.55, 1],
+  ],
+  maxRadius: 70,
+  speed: 1,
+  thickness: 5,
+  transitionSpeed: 6,
+};
 export { calculateExplosionDurationMs };
 
 // What FxPass calls on each sub-pass. A sub-pass whose program fails to build
@@ -151,6 +167,12 @@ export class FxPass {
 
     const nukeRadius = nukeExplosionRadius(this.settings.fx, typeName);
     if (nukeRadius !== undefined) {
+      if (unit.reachedTarget && typeName === UT_EMP_BOMB) {
+        // An EMP destroys nothing: no fireball or debris, just a crackling
+        // electric ring out to the disable radius.
+        this.shockwavePass.pushNukeShockwave(x, y, nukeRadius, EMP_PULSE);
+        return;
+      }
       if (unit.reachedTarget) {
         this.spritePass.spawnFxForUnit(unit, now);
         this.shockwavePass.pushNukeShockwave(x, y, nukeRadius, unit.explosion);
@@ -192,6 +214,11 @@ export class FxPass {
     this.spritePass.draw(cameraMatrix);
     this.shockwavePass.draw(cameraMatrix);
     this.attackRingPass.draw(cameraMatrix, zoom);
+  }
+
+  /** The light-emitting part (fireballs, EMP pulses, SAM hits) for bloom. */
+  drawEmissive(cameraMatrix: Float32Array): void {
+    this.shockwavePass.draw(cameraMatrix);
   }
 
   // -------------------------------------------------------------------------

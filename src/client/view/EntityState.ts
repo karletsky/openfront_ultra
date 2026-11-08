@@ -74,6 +74,11 @@ export function unitStateFromUpdate(u: UnitUpdate): UnitState {
     samUpgradeStartRange: u.samUpgrade?.startRange ?? null,
     samUpgradeTargetLevel: u.samUpgrade?.targetLevel ?? null,
     samUpgradeDuration: u.samUpgrade?.duration ?? null,
+    // Only once an EMP has hit it, so unit state matches replays (which
+    // don't record EMPs).
+    ...(u.disabledUntil !== undefined && u.disabledUntil >= 0
+      ? { disabledUntil: u.disabledUntil }
+      : {}),
   };
 }
 
@@ -107,6 +112,12 @@ export function applyUnitUpdateInPlace(target: UnitState, u: UnitUpdate): void {
   target.samUpgradeStartRange = u.samUpgrade?.startRange ?? null;
   target.samUpgradeTargetLevel = u.samUpgrade?.targetLevel ?? null;
   target.samUpgradeDuration = u.samUpgrade?.duration ?? null;
+  if (
+    (u.disabledUntil !== undefined && u.disabledUntil >= 0) ||
+    target.disabledUntil !== undefined
+  ) {
+    target.disabledUntil = u.disabledUntil ?? -1;
+  }
 }
 
 function gamePlayerTypeToEnum(t: PlayerType): PlayerTypeEnum {
@@ -177,6 +188,10 @@ export function playerStateFromUpdate(pu: PlayerUpdate): PlayerState {
     hasSpawned: pu.hasSpawned!,
     spawnTile: pu.spawnTile,
     lastDeleteUnitTick: pu.lastDeleteUnitTick!,
+    // Only set once there is research (advanced warfare games), so player
+    // state matches replays, which don't record it.
+    ...(pu.techs && pu.techs.length > 0 ? { techs: pu.techs.slice() } : {}),
+    ...(pu.research ? { research: { ...pu.research } } : {}),
     allies: pu.allies!.slice(),
     embargoes: [],
     targets: pu.targets!.slice(),

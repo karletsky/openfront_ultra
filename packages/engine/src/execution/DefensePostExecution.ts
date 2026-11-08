@@ -52,8 +52,8 @@ export class DefensePostExecution implements Execution {
       return;
     }
 
-    // Do nothing while the structure is under construction
-    if (this.post.isUnderConstruction()) {
+    // Do nothing while the structure is under construction or EMP-disabled.
+    if (this.post.isUnderConstruction() || this.post.isDisabled()) {
       return;
     }
 

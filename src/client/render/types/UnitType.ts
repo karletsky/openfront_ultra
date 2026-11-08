@@ -16,6 +16,9 @@ export const UT_TRADE_SHIP = "Trade Ship" as const;
 export const UT_WARSHIP = "Warship" as const;
 export const UT_ATOM_BOMB = "Atom Bomb" as const;
 export const UT_HYDROGEN_BOMB = "Hydrogen Bomb" as const;
+export const UT_TACTICAL_NUKE = "Tactical Nuke" as const;
+export const UT_EMP_BOMB = "EMP Bomb" as const;
+export const UT_DIRTY_BOMB = "Dirty Bomb" as const;
 export const UT_MIRV = "MIRV" as const;
 export const UT_SAM_MISSILE = "SAMMissile" as const;
 export const UT_SHELL = "Shell" as const;
@@ -47,6 +50,9 @@ export const NUKE_TYPES: ReadonlySet<string> = new Set([
   UT_ATOM_BOMB,
   UT_HYDROGEN_BOMB,
   UT_MIRV,
+  UT_TACTICAL_NUKE,
+  UT_EMP_BOMB,
+  UT_DIRTY_BOMB,
 ]);
 
 /** Nuke types whose rendered position is interpolated lastPos→pos each render
@@ -57,6 +63,9 @@ export const SMOOTHED_NUKE_TYPES: ReadonlySet<string> = new Set([
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
+  UT_TACTICAL_NUKE,
+  UT_EMP_BOMB,
+  UT_DIRTY_BOMB,
 ]);
 
 /** Units that leave a trail on the map (TrailManager). */
@@ -66,6 +75,9 @@ export const TRAIL_TYPES: ReadonlySet<string> = new Set([
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
+  UT_TACTICAL_NUKE,
+  UT_EMP_BOMB,
+  UT_DIRTY_BOMB,
 ]);
 
 /** Blast radii (in tiles) matching upstream DefaultConfig.nukeMagnitudes(). */
@@ -75,6 +87,9 @@ export const NUKE_MAGNITUDES: Readonly<
   [UT_ATOM_BOMB]: { inner: 12, outer: 30 },
   [UT_HYDROGEN_BOMB]: { inner: 80, outer: 100 },
   [UT_MIRV_WARHEAD]: { inner: 12, outer: 18 },
+  [UT_TACTICAL_NUKE]: { inner: 6, outer: 14 },
+  [UT_EMP_BOMB]: { inner: 0, outer: 70 },
+  [UT_DIRTY_BOMB]: { inner: 6, outer: 12 },
 };
 
 // ---------------------------------------------------------------------------
@@ -99,4 +114,7 @@ export const ALL_UNIT_TYPES = [
   UT_SAM_LAUNCHER,
   UT_MISSILE_SILO,
   UT_TRAIN,
+  UT_TACTICAL_NUKE,
+  UT_EMP_BOMB,
+  UT_DIRTY_BOMB,
 ] as const;

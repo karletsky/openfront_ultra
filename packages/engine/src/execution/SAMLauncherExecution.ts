@@ -121,9 +121,15 @@ class SAMTargetingSystem {
       : undefined;
   }
 
-  private isTargetableAt(tile: TileRef, src: TileRef, dst: TileRef): boolean {
+  private isTargetableAt(
+    tile: TileRef,
+    src: TileRef,
+    dst: TileRef,
+    nukeOwner: Player,
+  ): boolean {
+    // Stealth Warheads shrink this range for the nuke's owner.
     const targetRangeSquared =
-      this.mg.config().defaultNukeTargetableRange() ** 2;
+      this.mg.config().defaultNukeTargetableRange(nukeOwner) ** 2;
     return (
       this.mg.euclideanDistSquared(tile, dst) < targetRangeSquared ||
       this.mg.euclideanDistSquared(tile, src) < targetRangeSquared
@@ -169,7 +175,7 @@ class SAMTargetingSystem {
         nukeTicks >= samTicks &&
         src !== undefined &&
         dst !== undefined &&
-        this.isTargetableAt(tile, src, dst)
+        this.isTargetableAt(tile, src, dst, unit.owner())
       ) {
         return {
           tick: nukeTicks - samTicks,
@@ -268,7 +274,7 @@ class SAMTargetingSystem {
     const nukes = this.mg.nearbyUnits(
       samTile,
       detectionRange,
-      [UnitType.AtomBomb, UnitType.HydrogenBomb, UnitType.MIRVWarhead],
+      SAM_TARGET_TYPES,
       this.isTargetableNearbyUnit,
     );
 
@@ -308,6 +314,16 @@ class SAMTargetingSystem {
     return this.sortTargets(targets);
   }
 }
+
+/** Nukes SAMs shoot at (MIRV buses are not targetable, their warheads are). */
+const SAM_TARGET_TYPES: readonly UnitType[] = [
+  UnitType.AtomBomb,
+  UnitType.HydrogenBomb,
+  UnitType.MIRVWarhead,
+  UnitType.TacticalNuke,
+  UnitType.EMPBomb,
+  UnitType.DirtyBomb,
+];
 
 export class SAMLauncherExecution implements Execution {
   private mg: Game;
@@ -371,14 +387,16 @@ export class SAMLauncherExecution implements Execution {
     while (this.sam.missileTimerQueue().length > 0) {
       const frontTime = this.sam.missileTimerQueue()[0];
       const cooldown =
-        this.mg.config().SAMCooldown() - (this.mg.ticks() - frontTime);
+        this.mg.config().SAMCooldown(this.sam.owner()) -
+        (this.mg.ticks() - frontTime);
 
       if (cooldown > 0) {
         break;
       }
       this.sam.reloadMissile();
     }
-    if (this.sam.isInCooldown()) {
+    if (this.sam.isInCooldown() || this.sam.isDisabled()) {
+      // Reloading, or knocked out by an EMP.
       return;
     }
 
@@ -391,11 +409,7 @@ export class SAMLauncherExecution implements Execution {
     // them (unit ids are unique). unitCount(type) is memoised per unit-list version — one shared
     // walk a tick, not one a launcher — and unlike units(type) a hit allocates nothing. A nuke's
     // level is always 1, so a zero count is exactly an empty list.
-    if (
-      this.mg.unitCount(UnitType.AtomBomb) === 0 &&
-      this.mg.unitCount(UnitType.HydrogenBomb) === 0 &&
-      this.mg.unitCount(UnitType.MIRVWarhead) === 0
-    ) {
+    if (SAM_TARGET_TYPES.every((t) => this.mg.unitCount(t) === 0)) {
       return;
     }
     // target is already filtered to exclude nukes targeted by other SAMs

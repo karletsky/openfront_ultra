@@ -114,6 +114,12 @@ export const GraphicsOverridesSchema = z
         enhanced: z.boolean(),
       })
       .partial(),
+    glow: z
+      .object({
+        // Bloom around explosions, nuke plumes and EMP pulses.
+        enabled: z.boolean(),
+      })
+      .partial(),
     units: z
       .object({
         // Procedural nukes in flight, fireball detonations and outlined
@@ -129,6 +135,10 @@ export const GraphicsOverridesSchema = z
         pitch: z.number(),
         // Height of the highest mountains, in tiles.
         heightScale: z.number(),
+        // Drifting clouds with ground shadows (fade out when zoomed in).
+        clouds: z.boolean(),
+        // Structures as 3D models instead of icons when zoomed in.
+        buildings: z.boolean(),
       })
       .partial(),
     lighting: z

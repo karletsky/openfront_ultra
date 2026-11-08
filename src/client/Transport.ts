@@ -7,6 +7,7 @@ import {
   Tick,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
+import type { TechId } from "@openfront/engine-api/game/Tech";
 import {
   AllPlayersStats,
   ClientID,
@@ -86,6 +87,11 @@ export class SendUpgradeStructureIntentEvent implements GameEvent {
     public readonly unitType: UnitType,
     public readonly amount: number = 1,
   ) {}
+}
+
+/** Advanced warfare: start researching a tech. */
+export class SendResearchIntentEvent implements GameEvent {
+  constructor(public readonly tech: TechId) {}
 }
 
 export class SendAllianceRejectIntentEvent implements GameEvent {
@@ -321,6 +327,9 @@ export class Transport {
     this.subscribe(SetIntentGateEvent, (e) => (this.intentGate = e.gate));
     this.subscribe(SendSpawnIntentEvent, (e) => this.onSendSpawnIntentEvent(e));
     this.subscribe(SendAttackIntentEvent, (e) => this.onSendAttackIntent(e));
+    this.subscribe(SendResearchIntentEvent, (e) =>
+      this.onSendResearchIntent(e),
+    );
     this.subscribe(SendUpgradeStructureIntentEvent, (e) =>
       this.onSendUpgradeStructureIntent(e),
     );
@@ -831,6 +840,10 @@ export class Transport {
       troops: event.troops,
       dst: event.dst,
     });
+  }
+
+  private onSendResearchIntent(event: SendResearchIntentEvent) {
+    this.sendIntent({ type: "research", tech: event.tech });
   }
 
   private onSendUpgradeStructureIntent(event: SendUpgradeStructureIntentEvent) {

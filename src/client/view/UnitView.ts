@@ -215,7 +215,7 @@ export class UnitView implements UnitLike {
 
     const cooldownDuration =
       this.state.unitType === UnitType.SAMLauncher
-        ? this.gameView.config().SAMCooldown()
+        ? this.gameView.config().SAMCooldown(this.owner())
         : this.gameView.config().SiloCooldown();
 
     for (const cooldown of this.state.missileTimerQueue) {

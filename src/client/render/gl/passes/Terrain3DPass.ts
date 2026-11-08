@@ -26,6 +26,8 @@ export class Terrain3DPass {
   private ibo: WebGLBuffer;
   private indexCount: number;
   private heightTex: WebGLTexture;
+  private waterTex: WebGLTexture;
+  private startMs = performance.now();
   private step: number;
   private u: Record<string, WebGLUniformLocation | null> = {};
 
@@ -56,6 +58,15 @@ export class Terrain3DPass {
       "uHaze",
       "uHazeStart",
       "uHazeEnd",
+      "uEmissive",
+      "uWater",
+      "uTime",
+      "uSea",
+      "uSkyColor",
+      "uCloudCover",
+      "uCloudFade",
+      "uCloudHeight",
+      "uCloudShadow",
     ]) {
       this.u[name] = gl.getUniformLocation(this.program, name);
     }
@@ -68,6 +79,15 @@ export class Terrain3DPass {
       format: gl.RED,
       type: gl.UNSIGNED_BYTE,
       data: heights.data,
+      filter: gl.LINEAR,
+    });
+    this.waterTex = createTexture2D(gl, {
+      width: mapW,
+      height: mapH,
+      internalFormat: gl.R8,
+      format: gl.RED,
+      type: gl.UNSIGNED_BYTE,
+      data: heights.water,
       filter: gl.LINEAR,
     });
 
@@ -152,6 +172,23 @@ export class Terrain3DPass {
       gl.UNSIGNED_BYTE,
       sub,
     );
+    // The water mask follows (land → water conversions).
+    for (let j = 0; j < h; j++) {
+      const row = (y + j) * heights.width + x;
+      sub.set(heights.water.subarray(row, row + w), j * w);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this.waterTex);
+    gl.texSubImage2D(
+      gl.TEXTURE_2D,
+      0,
+      x,
+      y,
+      w,
+      h,
+      gl.RED,
+      gl.UNSIGNED_BYTE,
+      sub,
+    );
   }
 
   /**
@@ -188,6 +225,17 @@ export class Terrain3DPass {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.heightTex);
     gl.uniform1i(u.uHeight, 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.waterTex);
+    gl.uniform1i(u.uWater, 2);
+    gl.uniform1f(u.uTime, (performance.now() - this.startMs) / 1000);
+    gl.uniform1f(u.uSea, s.sea);
+    const sky = skyColors(background).bottom;
+    gl.uniform3f(u.uSkyColor, sky[0], sky[1], sky[2]);
+    gl.uniform1f(u.uCloudCover, s.cloudCover);
+    gl.uniform1f(u.uCloudFade, cloudFade(view, s));
+    gl.uniform1f(u.uCloudHeight, s.cloudHeight);
+    gl.uniform1f(u.uCloudShadow, s.cloudShadow);
 
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
@@ -199,12 +247,59 @@ export class Terrain3DPass {
     gl.activeTexture(gl.TEXTURE0);
   }
 
+  /**
+   * Glow: drape the image-space emissive layer over the same mesh into the
+   * bound (emissive) framebuffer, depth-tested so hills hide glows behind.
+   */
+  drawEmissive(
+    view: View3D,
+    imgCam: Float32Array,
+    emissiveTex: WebGLTexture,
+  ): void {
+    const gl = this.gl;
+    gl.useProgram(this.program);
+    gl.uniform1i(this.u.uEmissive, 1);
+    this.draw(view, imgCam, emissiveTex, [0, 0, 0]);
+    gl.useProgram(this.program);
+    gl.uniform1i(this.u.uEmissive, 0);
+  }
+
   dispose(): void {
     const gl = this.gl;
     gl.deleteProgram(this.program);
     gl.deleteTexture(this.heightTex);
+    gl.deleteTexture(this.waterTex);
     gl.deleteBuffer(this.vbo);
     gl.deleteBuffer(this.ibo);
     gl.deleteVertexArray(this.vao);
   }
+}
+
+/**
+ * How visible the cloud layer is: none when the camera is close to it
+ * (zoomed in, where clouds would hide the game), fully when far above.
+ */
+export function cloudFade(view: View3D, s: RenderSettings["view3d"]): number {
+  if (!s.clouds) return 0;
+  const h = view.eye[2];
+  const a = s.cloudHeight * 4;
+  const b = s.cloudHeight * 9;
+  const t = Math.min(1, Math.max(0, (h - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+/** Sky gradient for the 3D background, derived from the background color. */
+export function skyColors(bg: readonly [number, number, number]): {
+  top: [number, number, number];
+  bottom: [number, number, number];
+} {
+  const haze: [number, number, number] = [0.62, 0.72, 0.84];
+  return {
+    top: [bg[0] * 0.75, bg[1] * 0.8, bg[2] * 0.95],
+    bottom: [
+      bg[0] * 0.55 + haze[0] * 0.45,
+      bg[1] * 0.55 + haze[1] * 0.45,
+      bg[2] * 0.55 + haze[2] * 0.45,
+    ],
+  };
 }

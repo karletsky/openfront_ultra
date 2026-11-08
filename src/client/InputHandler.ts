@@ -137,6 +137,9 @@ export function highlightTypesForUnit(
   switch (unitType) {
     case UnitType.AtomBomb:
     case UnitType.HydrogenBomb:
+    case UnitType.TacticalNuke:
+    case UnitType.EMPBomb:
+    case UnitType.DirtyBomb:
       return [UnitType.MissileSilo, UnitType.SAMLauncher];
     case UnitType.Warship:
       return [UnitType.Port];

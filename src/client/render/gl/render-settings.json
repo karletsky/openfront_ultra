@@ -28,13 +28,26 @@
     "waterStrength": 1,
     "foamStrength": 0.6
   },
+  "glow": {
+    "enabled": true,
+    "intensity": 1.3
+  },
   "view3d": {
     "enabled": true,
     "pitch": 40,
     "fov": 35,
     "heightScale": 30,
     "lightStrength": 0.6,
-    "haze": 0.25
+    "haze": 0.25,
+    "sea": 1,
+    "clouds": true,
+    "cloudCover": 0.42,
+    "cloudAlpha": 0.6,
+    "cloudHeight": 70,
+    "cloudShadow": 0.28,
+    "buildings": true,
+    "buildingsMinZoom": 1.4,
+    "buildingsScreenPx": 52
   },
   "falloutBloom": {
     "broilSpeedCold": 0.0018,
@@ -232,7 +245,8 @@
     "nukeMinLengthPx": 30,
     "nukeShadowHeight": 0.5,
     "nukeGlowStrength": 0.7,
-    "nukePlumeLength": 1.1
+    "nukePlumeLength": 1.1,
+    "nukeArcHeight": 45
   },
   "name": {
     "lerpSpeed": 10,

@@ -17,6 +17,7 @@ import {
   UnitType,
   WarshipState,
 } from "./GameTypes";
+import type { TechId } from "./Tech";
 
 export interface GameUpdateViewData {
   tick: number;
@@ -221,6 +222,8 @@ export interface UnitUpdate {
   trainType?: TrainType; // Only for trains
   loaded?: boolean; // Only for trains
   samUpgrade?: SamLauncherState;
+  /** Advanced warfare: EMP-disabled until this tick (-1 = never). */
+  disabledUntil?: Tick;
 }
 
 export interface AttackUpdate {
@@ -288,6 +291,10 @@ export interface PlayerUpdate {
   betrayals?: number;
   lastDeleteUnitTick?: Tick;
   isLobbyCreator?: boolean;
+  /** Advanced warfare: researched techs, in tech-tree order. */
+  techs?: TechId[];
+  /** Advanced warfare: the research in progress, or null. */
+  research?: { tech: TechId; startTick: Tick; endTick: Tick } | null;
 }
 
 export interface AllianceView {

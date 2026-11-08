@@ -6,10 +6,11 @@ layout(location = 0) in vec2 aPos;
 
 // Per-instance: x, y, ownerID, underConstruction, atlasIdx, markedForDeletion
 layout(location = 1) in vec4 aInst0; // x, y, ownerID, underConstruction
-layout(location = 2) in vec2 aInst1; // atlasIdx, markedForDeletion
+layout(location = 2) in vec3 aInst1; // atlasIdx, markedForDeletion, disabledUntil
 
 uniform mat3  uCamera;
 uniform float uZoom;
+uniform float uGameTick;
 
 uniform float uIconSize;
 uniform float uDotsThreshold;
@@ -24,6 +25,7 @@ out vec2  vAtlasUV;
 flat out float vOwnerID;
 flat out float vUnderConstruction;
 flat out float vMarkedForDeletion;
+flat out float vDisabled; // 1 while an EMP has this structure disabled
 flat out float vZoom;
 flat out float vAtlasIdx;
 flat out float vShapeScale;
@@ -34,6 +36,7 @@ void main() {
   vOwnerID = aInst0.z;
   vUnderConstruction = aInst0.w;
   vMarkedForDeletion = aInst1.y;
+  vDisabled = step(uGameTick + 0.5, aInst1.z);
   vZoom = uZoom;
   vAtlasIdx = aInst1.x;
 

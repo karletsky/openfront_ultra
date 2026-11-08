@@ -1,12 +1,16 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import {
   MessageType,
+  Nukes,
   Structures,
   TerraNullius,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { ReadonlyTileSet } from "@openfront/engine-api/game/ReadViews";
-import { NukeType } from "@openfront/engine-api/StatsSchemas";
+import {
+  NukeType,
+  unitTypeToBombUnit,
+} from "@openfront/engine-api/StatsSchemas";
 import { atan2 } from "@openfront/engine-lib/DetMath";
 import { listNukeBreakAlliance } from "@openfront/engine-lib/execution/NukeAlliance";
 import { TileSet } from "@openfront/engine-lib/game/TileSet";
@@ -35,8 +39,23 @@ import type {
   SnapshotReader,
   SnapshotWriter,
 } from "../snapshot/SnapshotContext";
+import { RadiationExecution } from "./RadiationExecution";
 
 const SPRITE_RADIUS = 16;
+
+type AnyNukeType = (typeof Nukes.types)[number];
+
+/** Inbound warnings for the advanced warfare nukes. */
+const ADVANCED_INBOUND_KEYS: Partial<Record<AnyNukeType, string>> = {
+  [UnitType.TacticalNuke]: "events_display.tactical_nuke_inbound",
+  [UnitType.EMPBomb]: "events_display.emp_bomb_inbound",
+  [UnitType.DirtyBomb]: "events_display.dirty_bomb_inbound",
+};
+
+/** Whether the closed-source stats schema records this nuke type. */
+function isStatsNukeType(type: UnitType): type is NukeType {
+  return type in unitTypeToBombUnit;
+}
 
 export class NukeExecution implements Execution {
   private active = true;
@@ -46,7 +65,7 @@ export class NukeExecution implements Execution {
   private pathFinder: ParabolaUniversalPathFinder;
 
   constructor(
-    private nukeType: NukeType,
+    private nukeType: AnyNukeType,
     private player: Player,
     private dst: TileRef,
     private src?: TileRef | null,
@@ -58,7 +77,7 @@ export class NukeExecution implements Execution {
   init(mg: Game, ticks: number): void {
     this.mg = mg;
     if (this.speed === -1) {
-      this.speed = this.mg.config().nukeSpeed(this.nukeType);
+      this.speed = this.mg.config().nukeSpeed(this.nukeType, this.player);
     }
     this.pathFinder = UniversalPathFinding.Parabola(mg, {
       increment: this.speed,
@@ -77,7 +96,9 @@ export class NukeExecution implements Execution {
     if (this.nuke === null) {
       throw new Error("Not initialized");
     }
-    const magnitude = this.mg.config().nukeMagnitudes(this.nuke.type());
+    const magnitude = this.mg
+      .config()
+      .nukeMagnitudes(this.nuke.type(), this.player);
     const rand = new PseudoRandom(this.mg.ticks());
     const inner2 = magnitude.inner * magnitude.inner;
     const outer2 = magnitude.outer * magnitude.outer;
@@ -157,13 +178,19 @@ export class NukeExecution implements Execution {
       return;
     }
 
-    const magnitude = this.mg.config().nukeMagnitudes(this.nuke.type());
+    const magnitude = this.mg
+      .config()
+      .nukeMagnitudes(this.nuke.type(), this.player);
 
     const playersToBreakAllianceWith = listNukeBreakAlliance({
       game: this.mg,
       targetTile: this.dst,
       magnitude,
-      threshold: this.mg.config().nukeAllianceBreakThreshold(),
+      // Tactical nukes are precise strikes: three times the damage before an
+      // alliance breaks.
+      threshold:
+        this.mg.config().nukeAllianceBreakThreshold() *
+        (this.nukeType === UnitType.TacticalNuke ? 3 : 1),
     });
 
     // Automatically reject incoming alliance requests.
@@ -253,13 +280,22 @@ export class NukeExecution implements Execution {
             MessageType.HYDROGEN_BOMB_INBOUND,
             target.id(),
           );
+        } else if (ADVANCED_INBOUND_KEYS[this.nukeType] !== undefined) {
+          this.mg.displayIncomingUnit(
+            this.nuke.id(),
+            ADVANCED_INBOUND_KEYS[this.nukeType]!,
+            MessageType.NUKE_INBOUND,
+            target.id(),
+          );
         }
 
         if (this.nukeType === UnitType.MIRV) {
           this.mg.recordMirvLaunch();
         }
-        // Record stats
-        this.mg.stats().bombLaunch(this.player, target, this.nukeType);
+        // Record stats (the API's stats schema only knows the original nukes).
+        if (isStatsNukeType(this.nukeType)) {
+          this.mg.stats().bombLaunch(this.player, target, this.nukeType);
+        }
       }
 
       // after sending a nuke set the missilesilo on cooldown
@@ -357,7 +393,7 @@ export class NukeExecution implements Execution {
       return;
     }
     const targetRangeSquared =
-      this.mg.config().defaultNukeTargetableRange() ** 2;
+      this.mg.config().defaultNukeTargetableRange(this.player) ** 2;
     const targetTile = this.nuke.targetTile();
     this.nuke.setTargetable(
       this.isTargetable(targetTile!, this.nuke.tile(), targetRangeSquared),
@@ -368,11 +404,15 @@ export class NukeExecution implements Execution {
     if (this.nuke === null) {
       throw new Error("Not initialized");
     }
+    if (this.nukeType === UnitType.EMPBomb) {
+      this.detonateEmp();
+      return;
+    }
 
     const mg = this.mg;
     const config = mg.config();
 
-    const magnitude = config.nukeMagnitudes(this.nuke.type());
+    const magnitude = config.nukeMagnitudes(this.nuke.type(), this.player);
     const toDestroy = this.tilesToDestroy();
 
     // Retrieve all impacted players and the number of tiles
@@ -445,13 +485,7 @@ export class NukeExecution implements Execution {
     const dst = this.dst;
     for (const unit of mg.units()) {
       const type = unit.type();
-      if (
-        type === UnitType.AtomBomb ||
-        type === UnitType.HydrogenBomb ||
-        type === UnitType.MIRVWarhead ||
-        type === UnitType.MIRV ||
-        type === UnitType.SAMMissile
-      ) {
+      if (Nukes.has(type) || type === UnitType.SAMMissile) {
         continue;
       }
       if (mg.euclideanDistSquared(dst, unit.tile()) < outer2) {
@@ -466,6 +500,18 @@ export class NukeExecution implements Execution {
     this.active = false;
     this.nuke.setReachedTarget();
     this.nuke.delete(false);
+
+    if (this.nukeType === UnitType.DirtyBomb) {
+      // The blast is small; the lasting damage is the radiation zone.
+      mg.addExecution(
+        new RadiationExecution(
+          this.player,
+          this.dst,
+          config.dirtyBombZoneRadius(),
+          mg.ticks() + config.dirtyBombZoneTicks(),
+        ),
+      );
+    }
 
     if (
       this.nukeType === UnitType.AtomBomb ||
@@ -488,10 +534,45 @@ export class NukeExecution implements Execution {
       }
     }
 
-    // Record stats
-    this.mg
-      .stats()
-      .bombLand(this.player, this.target(), this.nuke.type() as NukeType);
+    // Record stats (the API's stats schema only knows the original nukes).
+    const landed = this.nuke.type();
+    if (isStatsNukeType(landed)) {
+      this.mg.stats().bombLand(this.player, this.target(), landed);
+    }
+  }
+
+  /**
+   * EMP: destroys nothing and kills no one; disables every structure in the
+   * radius (SAMs and defense posts can't fire, silos can't launch, ports
+   * send no trade ships) for a while.
+   */
+  private detonateEmp() {
+    const nuke = this.nuke!;
+    const mg = this.mg;
+    const radius = mg
+      .config()
+      .nukeMagnitudes(UnitType.EMPBomb, this.player).outer;
+    const until = mg.ticks() + mg.config().empDisableTicks();
+    const hitPlayers = new Set<Player>();
+    for (const { unit } of mg.nearbyUnits(this.dst, radius, Structures.types)) {
+      if (!isUnit(unit) || !unit.isActive()) continue;
+      unit.disableUntil(until);
+      if (unit.owner() !== this.player) hitPlayers.add(unit.owner());
+    }
+    for (const victim of hitPlayers) {
+      mg.displayMessage(
+        "events_display.emp_strike",
+        MessageType.EMP_STRIKE,
+        victim.id(),
+        undefined,
+        { name: this.player.displayName() },
+        undefined,
+        this.player.id(),
+      );
+    }
+    this.active = false;
+    nuke.setReachedTarget();
+    nuke.delete(false);
   }
 
   private redrawBuildings(range: number) {
@@ -551,7 +632,7 @@ export class NukeExecution implements Execution {
       this.pathFinder = restoreParabola(r.game, s.pathFinder);
     }
     this.nuke = r.unitOrNull(s.nuke);
-    this.nukeType = s.nukeType as NukeType;
+    this.nukeType = s.nukeType as AnyNukeType;
     this.player = r.player(s.player);
     this.dst = s.dst;
     this.src = s.src;

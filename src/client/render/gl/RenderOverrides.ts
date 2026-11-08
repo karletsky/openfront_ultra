@@ -167,6 +167,9 @@ export function applyGraphicsOverrides(
   if (overrides.terrain?.mountainColor !== undefined) {
     settings.terrain.mountainColor = overrides.terrain.mountainColor;
   }
+  if (overrides.glow?.enabled !== undefined) {
+    settings.glow.enabled = overrides.glow.enabled;
+  }
   if (overrides.units?.enhanced !== undefined) {
     // One user-facing toggle for all unit graphics upgrades.
     settings.unit.enhancedNukes = overrides.units.enhanced;
@@ -181,6 +184,12 @@ export function applyGraphicsOverrides(
   }
   if (overrides.view3d?.heightScale !== undefined) {
     settings.view3d.heightScale = overrides.view3d.heightScale;
+  }
+  if (overrides.view3d?.clouds !== undefined) {
+    settings.view3d.clouds = overrides.view3d.clouds;
+  }
+  if (overrides.view3d?.buildings !== undefined) {
+    settings.view3d.buildings = overrides.view3d.buildings;
   }
   if (overrides.terrain?.enhanced !== undefined) {
     settings.terrain.enhanced = overrides.terrain.enhanced;

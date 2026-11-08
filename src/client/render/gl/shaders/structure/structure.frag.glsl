@@ -32,6 +32,7 @@ in vec2  vAtlasUV;
 flat in float vOwnerID;
 flat in float vUnderConstruction;
 flat in float vMarkedForDeletion;
+flat in float vDisabled;
 flat in float vZoom;
 flat in float vAtlasIdx;
 flat in float vShapeScale;
@@ -241,6 +242,14 @@ void main() {
     float mask = 1.0 - smoothstep(maskR - fw, maskR, dist);
     float xLine = (1.0 - smoothstep(lineW - fw, lineW + fw, dMin)) * mask;
     finalRGB = mix(finalRGB, vec3(1.0, 0.25, 0.25), xLine * 0.95);
+  }
+
+  // EMP-disabled: grayed out with a flickering electric-cyan overlay.
+  if (vDisabled > 0.5) {
+    float gray = dot(finalRGB, vec3(0.299, 0.587, 0.114));
+    float flicker = 0.5 + 0.5 * sin(uTime * 23.0 + vLocalPos.x * 9.0) *
+      sin(uTime * 17.0 - vLocalPos.y * 11.0);
+    finalRGB = mix(vec3(gray * 0.55), vec3(0.35, 0.85, 1.0), 0.25 + 0.35 * flicker);
   }
 
   // Ghost tint — blend entire surface toward uOutlineColor when non-zero

@@ -40,6 +40,7 @@ import {
   UnitLike,
   UnitPredicate,
 } from "@openfront/engine-api/game/ReadViews";
+import type { TechId } from "@openfront/engine-api/game/Tech";
 import {
   AllPlayersStats,
   ClientID,
@@ -81,6 +82,21 @@ export interface UnitParamsMap {
   };
 
   [UnitType.HydrogenBomb]: {
+    targetTile?: number;
+    trajectory: TileRef[];
+  };
+
+  [UnitType.TacticalNuke]: {
+    targetTile?: number;
+    trajectory: TileRef[];
+  };
+
+  [UnitType.EMPBomb]: {
+    targetTile?: number;
+    trajectory: TileRef[];
+  };
+
+  [UnitType.DirtyBomb]: {
     targetTile?: number;
     trajectory: TileRef[];
   };
@@ -281,6 +297,10 @@ export interface Unit extends UnitLike {
   launch(): void;
   reloadMissile(): void;
   isInCooldown(): boolean;
+  /** Advanced warfare: disabled by an EMP (SAMs/silos/posts stop working). */
+  isDisabled(): boolean;
+  disabledUntil(): Tick;
+  disableUntil(tick: Tick): void;
   missileTimerQueue(): number[];
   samLauncherState(): SamLauncherState | undefined;
 
@@ -310,6 +330,19 @@ export interface DisconnectSnapshot {
   totalLand: number;
   wasAlive: boolean;
 }
+
+export interface ActiveResearch {
+  tech: TechId;
+  startTick: Tick;
+  endTick: Tick;
+}
+
+export type ResearchBlocker =
+  | "disabled" // the game isn't an advanced warfare game
+  | "researched"
+  | "busy" // another research is in progress
+  | "prerequisites"
+  | "gold";
 
 export interface Player extends PlayerLike {
   // Basic Info
@@ -364,6 +397,15 @@ export interface Player extends PlayerLike {
 
   // Resources & Troops
   gold(): Gold;
+  // Advanced warfare research (see engine-api game/Tech.ts).
+  techs(): TechId[];
+  activeResearch(): ActiveResearch | null;
+  /** Why the player can't start researching `tech` now, or null if they can. */
+  researchBlocker(tech: TechId): ResearchBlocker | null;
+  /** Pay for and start researching `tech`; false if researchBlocker says no. */
+  startResearch(tech: TechId): boolean;
+  /** Complete the active research if it is due. Called once per tick. */
+  tickResearch(): void;
   addGold(toAdd: Gold, tile?: TileRef): void;
   removeGold(toRemove: Gold): Gold;
 

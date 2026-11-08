@@ -96,6 +96,12 @@ export interface RenderSettings {
    * Tilted 3D view: the flat map is draped over a terrain mesh and seen
    * through a perspective camera (see GPURenderer.renderFrame3D).
    */
+  /** Bloom around light-emitting effects (GlowPass). */
+  glow: {
+    enabled: boolean;
+    /** Glow brightness (0 = off). */
+    intensity: number;
+  };
   view3d: {
     enabled: boolean;
     /** Camera tilt from straight down, degrees (0-60). */
@@ -108,6 +114,24 @@ export interface RenderSettings {
     lightStrength: number;
     /** Distance haze toward the far edge (0 = none). */
     haze: number;
+    /** Sun glints, waves and sky reflection on water (0 = none). */
+    sea: number;
+    /** Drifting cloud layer with ground shadows (fades out when zoomed in). */
+    clouds: boolean;
+    /** Share of the sky covered by clouds, 0..1. */
+    cloudCover: number;
+    /** Cloud opacity, 0..1. */
+    cloudAlpha: number;
+    /** Cloud layer altitude, in tiles. */
+    cloudHeight: number;
+    /** How much clouds darken the ground below them, 0..1. */
+    cloudShadow: number;
+    /** Structures as 3D models (Building3DPass) instead of flat icons. */
+    buildings: boolean;
+    /** Models only from this zoom (CSS px per tile); icons below it. */
+    buildingsMinZoom: number;
+    /** Model footprint on screen at the look-at point, CSS px. */
+    buildingsScreenPx: number;
   };
   falloutBloom: {
     broilSpeedCold: number;
@@ -313,6 +337,7 @@ export interface RenderSettings {
     nukeShadowHeight: number; // ground-shadow drift at mid-flight, in missile lengths
     nukeGlowStrength: number; // heat glow opacity (0..1)
     nukePlumeLength: number; // exhaust plume length, in missile lengths
+    nukeArcHeight: number; // 3D view: peak flight altitude, in tiles
   };
   name: {
     lerpSpeed: number;

@@ -119,6 +119,11 @@ class ReplayPlayerView {
   clanTag(): string | null {
     return this.info.clanTag;
   }
+  /** Replays don't record research. */
+  hasTech(): boolean {
+    return false;
+  }
+
   isLobbyCreator(): boolean {
     return this.info.isLobbyCreator;
   }
